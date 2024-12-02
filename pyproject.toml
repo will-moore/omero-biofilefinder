@@ -1,0 +1,35 @@
+[build-system]
+requires = [
+    "setuptools",
+]
+
+[project]
+name = "omero-biofilefinder"
+version = "0.1.0.dev0"
+description = "OMERO BioFile Finder plugin"
+authors = [ 
+   {name = "Will Moore", email = "ome-team@openmicroscopy.org"}
+]
+license = {file = "LICENSE"}
+keywords = ["omero", "omero-web"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Environment :: Plugins",
+    "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: GNU Affero General Public License v3 ",  # noqa
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+requires-python = ">= 3.9"
+
+[project.urls]
+Repository = "https://github.com/will-moore/omero-biofilefinder"
+Download = "https://github.com/will-moore/omero-biofilefinder/v0.1.0.dev0.tar.gz"
+
+[project.optional-dependencies]
+test = [
+    "pytest"
+]
