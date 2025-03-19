@@ -16,10 +16,13 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+import requests
 import csv
 import io
+import urllib
+import json
 from django.shortcuts import render
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseRedirect
 from collections import defaultdict
 from django.urls import reverse
 
@@ -28,26 +31,36 @@ from omeroweb.decorators import login_required
 from omeroweb.webclient.tree import marshal_annotations
 
 
-# login_required: if not logged-in, will redirect to webclient
-# login page. Then back to here, passing in the 'conn' connection
-# and other arguments **kwargs.
 @login_required()
 def index(request, conn=None, **kwargs):
-    # We can load data from OMERO via Blitz Gateway connection.
-    # See https://docs.openmicroscopy.org/latest/omero/developers/Python.html
-    experimenter = conn.getUser()
+    # Placeholder index page
+    return render(request, "omero_biofilefinder/index.html", {})
 
-    # A dictionary of data to pass to the html template
-    context = {
-        "firstName": experimenter.firstName,
-        "lastName": experimenter.lastName,
-        "experimenterId": experimenter.id,
+
+@login_required()
+def open_with_redirect_to_app(request, conn=None, **kwargs):
+    """
+    Open-with > BFF goes here...
+
+    We generate a URL for loading csv for the project and then
+    redirect to the BFF app with the source parameter set to the
+    csv URL.
+    """
+
+    project_id = request.GET.get("project")
+    csv_url = request.build_absolute_uri(reverse("omero_biofilefinder_csv", kwargs={"id": project_id}))
+    
+    # Including the sessionUuid allows external request from BFF app to join the session
+    # TODO: lookup which server we are connected to if there are more than one
+    source = {
+        "uri": f"{csv_url}?bsession={conn._sessionUuid}&server=1",
+        "type": "csv",
+        "name": "omero.csv",
     }
-    # print can be useful for debugging, but remove in production
-    # print('context', context)
+    s = urllib.parse.quote(json.dumps(source))
+    url = f"https://bff.allencell.org/app?source={s}"
 
-    # Render the html template and return the http response
-    return render(request, "omero_biofilefinder/index.html", context)
+    return HttpResponseRedirect(url)    
 
 
 @login_required()
@@ -59,15 +72,13 @@ def omero_to_csv(request, id, conn=None, **kwargs):
         for image in dataset.listChildren():
             image_ids.append(image.id)
 
-    print("image_ids", image_ids)
-
-    anns, experimenters = marshal_annotations(conn, image_ids=image_ids, ann_type="map")
+    # We use page=-1 to avoid pagination (default is 500)
+    anns, experimenters = marshal_annotations(conn, image_ids=image_ids, ann_type="map", page=-1)
 
     # Get all the Keys...
     keys = set()
     for ann in anns:
         for key_val in ann["values"]:
-            print("key_val", key_val[0])
             keys.add(key_val[0])
 
     # Add values to dict {image_id: {key: [list, of, values]}}
@@ -82,8 +93,6 @@ def omero_to_csv(request, id, conn=None, **kwargs):
             kvp[image_id][key].append(value)
 
     column_names = ["File Path", "Thumbnail"] + list(keys)
-    print("column_names", column_names)
-
 
     # write csv to return as http response
     webclient_url = reverse("webindex")
@@ -98,8 +107,5 @@ def omero_to_csv(request, id, conn=None, **kwargs):
                 row.append(",".join(values.get(key, [])))
             writer.writerow(row)
 
-        response = HttpResponse(csvfile.getvalue(), content_type="text")
-        # response = HttpResponse(csvfile.getvalue(), content_type="text/csv")
-        # response["Content-Disposition"] = 'attachment; filename="biofilefinder.csv"'
+        response = HttpResponse(csvfile.getvalue(), content_type="text/csv")
         return response
-

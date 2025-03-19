@@ -2,10 +2,13 @@
 [![Actions Status](https://github.com/will-moore/omero-biofilefinder/workflows/OMERO/badge.svg)](https://github.com/will-moore/omero-biofilefinder/actions)
 
 
-OMERO.omero_biofilefinder
+OMERO BioFile Finder
 ==================================
 
-OMERO BioFile Finder plugin.
+This plugin supports opening of OMERO data (e.g. a Project) in the BioFile Finder app https://bff.allencell.org/.
+
+Key-Value pairs on Images in OMERO are converted into tabular data for BFF.
+
 
 Installation
 ============
@@ -42,14 +45,12 @@ Note the usage of single quotes around double quotes:
 
     $ omero config append omero.web.apps '"omero_biofilefinder"'
 
-Optionally, add a link "OMERO BioFile Finder" at the top of the webclient to
-open the index page of this app:
+Configure `Open with`. Currently we only support opening a `Project` in OMERO BioFile Finder.
 
-    $ omero config append omero.web.ui.top_links '["OMERO BioFile Finder", "omero_biofilefinder_index", {"title": "Open OMERO BioFile Finder in new tab", "target": "_blank"}]'
+    $ omero config append omero.web.open_with '["omero_bff", "omero_biofilefinder_openwith", {"supported_objects":["project"], "target": "_blank", "label": "BioFile Finder"}]'
 
 
-Now restart your `omero-web` server and go to
-<http://localhost:4080/omero_biofilefinder/> in your browser.
+Now restart your `omero-web` server.
 
 
 Further Info

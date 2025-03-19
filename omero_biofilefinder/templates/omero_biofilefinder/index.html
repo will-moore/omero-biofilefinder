@@ -20,31 +20,12 @@
 
         <!-- Include static css -->
         <link rel="stylesheet" type="text/css" href="{% static 'omero_biofilefinder/app.css' %}" />
-        
-        <script type="text/javascript">
-            // Global variables, used by JavaScript code.
-            window.PARAMS = {};
-            window.PARAMS.EXP_ID = {{ experimenterId }};
-
-            // Render a URL to the /api/v0/ URL for loading JSON data
-            window.PARAMS.API_BASE_URL = "{% url 'api_base' 0 %}";
-        </script>
     </head>
         
     <body>
         <h1>Welcome to OMERO BioFile Finder</h1>
         
-        <p>
-            Logged in as:
-            <!-- Django template renders values from context -->
-            <strong>{{ firstName }} {{ lastName }}</strong>
-        </p>
-
-        <p id="projects">
-            Loading Projects...
-        </p>
-        
-        <!-- Include the static JavaScript -->
-        <script src="{% static 'omero_biofilefinder/app.js' %}"></script>
+        Use the "Open With" context menu in OMERO.web to open data in the
+        <a href="https://bff.allencell.org/">BioFile Finder</a> app.
     </body>
 </html>
