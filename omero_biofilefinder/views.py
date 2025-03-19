@@ -103,7 +103,7 @@ def omero_to_csv(request, id, conn=None, **kwargs):
             value = key_val[1]
             kvp[image_id][key].append(value)
 
-    column_names = ["File Path", "File Name", "Thumbnail"] + list(keys)
+    column_names = ["File Path", "Thumbnail"] + list(keys)
 
     # write csv to return as http response
     webclient_url = request.build_absolute_uri(reverse("webindex"))
@@ -115,8 +115,9 @@ def omero_to_csv(request, id, conn=None, **kwargs):
             thumb_url = reverse("webgateway_render_thumbnail", kwargs={"iid": image_id})
             thumb_url = wrap_url(request, thumb_url, conn)
             image = conn.getObject("Image", image_id)
-            row = [f"{webclient_url}?show=image-{image_id}",
-                    image.getName() if image else "Not Found",
+            # "File Path" is just the name of the image since BFF can't make use
+            # of a full URL to the image in webclient
+            row = [image.getName() if image else "Not Found",
                    thumb_url]
             for key in keys:
                 row.append(",".join(values.get(key, [])))
