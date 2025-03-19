@@ -9,25 +9,16 @@ This plugin supports opening of OMERO data (e.g. a Project) in the BioFile Finde
 
 Key-Value pairs on Images in OMERO are converted into tabular data for BFF.
 
+NB: This app is currently at the proof-of-concept stage. Feedback welcome!
+
+**WARNING** We include your OMERO session ID within URLs that BFF uses to access data from OMERO, such
+as the Thumbnail URL. You should not share the session ID with anyone while the session is still active.
+
 
 Installation
 ============
 
 This section assumes that an OMERO.web is already installed.
-
-Installing from Pypi
---------------------
-
-Install the app using [pip](<https://pip.pypa.io/en/stable/>) .
-
-Ensure that you are running ``pip`` from the Python environment
-where ``omero-web`` is installed. Depending on your install, you may need to
-call ``pip`` with, for example: ``/path/to_web_venv/venv/bin/pip install ...``
-
-::
-
-    $ pip install -U omero-biofilefinder
-
 
 Development mode
 ----------------
@@ -38,7 +29,6 @@ Install `omero-biofilefinder` in development mode as follows:
     $ cd omero-biofilefinder
     $ pip install -e .
 
-After installation either from [Pypi](https://pypi.org/) or in development mode, you need to configure the application.
 To add the application to the `omero.web.apps` settings, run the following command:
 
 Note the usage of single quotes around double quotes:

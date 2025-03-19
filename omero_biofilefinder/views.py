@@ -37,6 +37,16 @@ def index(request, conn=None, **kwargs):
     return render(request, "omero_biofilefinder/index.html", {})
 
 
+def wrap_url(request, url, conn):
+    """
+    We need to enable the url to work when accessed from the BFF app.
+
+    The URL must be aboslute and include the sessionUuid and server
+    """
+    url = request.build_absolute_uri(url)
+    return f"{url}?bsession={conn._sessionUuid}&server=1"
+
+
 @login_required()
 def open_with_redirect_to_app(request, conn=None, **kwargs):
     """
@@ -48,12 +58,13 @@ def open_with_redirect_to_app(request, conn=None, **kwargs):
     """
 
     project_id = request.GET.get("project")
-    csv_url = request.build_absolute_uri(reverse("omero_biofilefinder_csv", kwargs={"id": project_id}))
+    csv_url = reverse("omero_biofilefinder_csv", kwargs={"id": project_id})
+    csv_url = wrap_url(request, csv_url, conn)
     
     # Including the sessionUuid allows external request from BFF app to join the session
     # TODO: lookup which server we are connected to if there are more than one
     source = {
-        "uri": f"{csv_url}?bsession={conn._sessionUuid}&server=1",
+        "uri": csv_url,
         "type": "csv",
         "name": "omero.csv",
     }
@@ -92,17 +103,21 @@ def omero_to_csv(request, id, conn=None, **kwargs):
             value = key_val[1]
             kvp[image_id][key].append(value)
 
-    column_names = ["File Path", "Thumbnail"] + list(keys)
+    column_names = ["File Path", "File Name", "Thumbnail"] + list(keys)
 
     # write csv to return as http response
-    webclient_url = reverse("webindex")
+    webclient_url = request.build_absolute_uri(reverse("webindex"))
 
     with io.StringIO() as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(column_names)
         for image_id, values in kvp.items():
-            thumb = reverse("webgateway_render_thumbnail", kwargs={"iid": image_id})
-            row = [f"{webclient_url}?show=image-{image_id}", thumb]
+            thumb_url = reverse("webgateway_render_thumbnail", kwargs={"iid": image_id})
+            thumb_url = wrap_url(request, thumb_url, conn)
+            image = conn.getObject("Image", image_id)
+            row = [f"{webclient_url}?show=image-{image_id}",
+                    image.getName() if image else "Not Found",
+                   thumb_url]
             for key in keys:
                 row.append(",".join(values.get(key, [])))
             writer.writerow(row)
