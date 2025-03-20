@@ -15,6 +15,17 @@ NB: This app is currently at the proof-of-concept stage. Feedback welcome!
 as the Thumbnail URL. You should not share the session ID with anyone while the session is still active.
 
 
+
+Data in webclient - images and Key-Value pairs are from idr0021.
+<img width="1256" alt="Image" src="https://github.com/user-attachments/assets/8124429d-ef3e-497b-baa2-9d537ac98357" />
+
+Open Project with BioFile Finder...
+<img width="420" alt="Image" src="https://github.com/user-attachments/assets/4e933502-b322-42b4-a19c-8de603e5427c" />
+
+This will open BioFile Finder in another tab. Here the images are grouped by `Gene Symbol`.
+<img width="1510" alt="Image" src="https://github.com/user-attachments/assets/3993278e-b978-4e89-b886-6df587a1297b" />
+
+
 Installation
 ============
 
