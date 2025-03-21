@@ -24,7 +24,9 @@ urlpatterns = [
     # index 'home page' of the app
     path("", views.index, name="omero_biofilefinder_index"),
 
-    path("open_with_redirect_to_app", views.open_with_redirect_to_app, name="omero_biofilefinder_openwith"),
+    path("open_with_redirect_to_app", views.open_with_redirect_to_app,
+         name="omero_biofilefinder_openwith"),
 
-    path("project/<int:id>/csv/", views.omero_to_csv, name="omero_biofilefinder_csv"),
+    path("project/<int:id>/csv/", views.omero_to_csv,
+         name="omero_biofilefinder_csv"),
 ]

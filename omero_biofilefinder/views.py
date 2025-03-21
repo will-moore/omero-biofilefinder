@@ -16,7 +16,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import requests
 import csv
 import io
 import urllib
@@ -60,8 +59,8 @@ def open_with_redirect_to_app(request, conn=None, **kwargs):
     project_id = request.GET.get("project")
     csv_url = reverse("omero_biofilefinder_csv", kwargs={"id": project_id})
     csv_url = wrap_url(request, csv_url, conn)
-    
-    # Including the sessionUuid allows external request from BFF app to join the session
+
+    # Including the sessionUuid allows request from BFF to join the session
     # TODO: lookup which server we are connected to if there are more than one
     source = {
         "uri": csv_url,
@@ -71,7 +70,7 @@ def open_with_redirect_to_app(request, conn=None, **kwargs):
     s = urllib.parse.quote(json.dumps(source))
     url = f"https://bff.allencell.org/app?source={s}"
 
-    return HttpResponseRedirect(url)    
+    return HttpResponseRedirect(url)
 
 
 @login_required()
@@ -84,7 +83,8 @@ def omero_to_csv(request, id, conn=None, **kwargs):
             image_ids.append(image.id)
 
     # We use page=-1 to avoid pagination (default is 500)
-    anns, experimenters = marshal_annotations(conn, image_ids=image_ids, ann_type="map", page=-1)
+    anns, experimenters = marshal_annotations(conn, image_ids=image_ids,
+                                              ann_type="map", page=-1)
 
     # Get all the Keys...
     keys = set()
@@ -106,17 +106,16 @@ def omero_to_csv(request, id, conn=None, **kwargs):
     column_names = ["File Path", "Thumbnail"] + list(keys)
 
     # write csv to return as http response
-    webclient_url = request.build_absolute_uri(reverse("webindex"))
-
     with io.StringIO() as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(column_names)
         for image_id, values in kvp.items():
-            thumb_url = reverse("webgateway_render_thumbnail", kwargs={"iid": image_id})
+            thumb_url = reverse("webgateway_render_thumbnail",
+                                kwargs={"iid": image_id})
             thumb_url = wrap_url(request, thumb_url, conn)
             image = conn.getObject("Image", image_id)
-            # "File Path" is just the name of the image since BFF can't make use
-            # of a full URL to the image in webclient
+            # "File Path" is just the name of the image since BFF can't make
+            # use of a full URL to the image in webclient
             row = [image.getName() if image else "Not Found",
                    thumb_url]
             for key in keys:
