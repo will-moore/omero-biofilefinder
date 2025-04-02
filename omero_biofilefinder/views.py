@@ -70,6 +70,34 @@ def open_with_redirect_to_app(request, conn=None, **kwargs):
     s = urllib.parse.quote(json.dumps(source))
     url = f"https://bff.allencell.org/app?source={s}"
 
+    # We want to pick some columns to show in the BFF app
+    # Need to know a few Keys from Key-Value pairs....
+    # Let's just check first 5 images...
+    datasets = conn.getObjects("Dataset", opts={"project": int(project_id)})
+    image_ids = []
+    for dataset in datasets:
+        for image in dataset.listChildren():
+            image_ids.append(image.id)
+            if len(image_ids) > 5:
+                break
+        if len(image_ids) > 5:
+            break
+    # Get KVP keys for 5 images...
+    anns, experimenters = marshal_annotations(conn, image_ids=image_ids,
+                                              ann_type="map")
+    keys = defaultdict(lambda: 0)
+    for ann in anns:
+        for key, val in ann["values"]:
+            keys[key] += 1
+    # Sort keys by number of occurrences and take the top 4
+    sorted_keys = sorted(keys.keys(), key=lambda x: keys[x], reverse=True)
+    # Show max 5 columns (4 keys)
+    col_names = ["File Name"] + sorted_keys[:4]
+    col_width = 1 / len(col_names)
+    # column query string e.g. "File Name:0.25,Key1:0.25,Key2:0.25,Key3:0.25"
+    col_query = ",".join([f"{name}:{col_width}:.2f" for name in col_names])
+    url += "&c=" + col_query
+
     return HttpResponseRedirect(url)
 
 
@@ -103,20 +131,23 @@ def omero_to_csv(request, id, conn=None, **kwargs):
             value = key_val[1]
             kvp[image_id][key].append(value)
 
-    column_names = ["File Path", "Thumbnail"] + list(keys)
+    column_names = ["File Path", "File Name", "Thumbnail"] + list(keys)
 
     # write csv to return as http response
     with io.StringIO() as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(column_names)
-        for image_id, values in kvp.items():
+        for image_id in image_ids:
+            values = kvp.get(image_id, {})
             thumb_url = reverse("webgateway_render_thumbnail",
                                 kwargs={"iid": image_id})
             thumb_url = wrap_url(request, thumb_url, conn)
             image = conn.getObject("Image", image_id)
-            # "File Path" is just the name of the image since BFF can't make
-            # use of a full URL to the image in webclient
-            row = [image.getName() if image else "Not Found",
+            image_url = request.build_absolute_uri(reverse("webindex"))
+            # we end url with .png so that BFF enables open-with "Browser"
+            image_url += f"?show=image-{image_id}&_=.png"
+            row = [image_url,
+                   image.getName() if image else "Not Found",
                    thumb_url]
             for key in keys:
                 row.append(",".join(values.get(key, [])))
