@@ -134,6 +134,7 @@ def omero_to_csv(request, id, conn=None, **kwargs):
             kvp[image_id][key].append(value)
 
     column_names = ["File Path", "File Name", "Dataset", "Thumbnail"] + list(keys)
+    column_names.append("Uploaded")
 
     # write csv to return as http response
     with io.StringIO() as csvfile:
@@ -154,6 +155,8 @@ def omero_to_csv(request, id, conn=None, **kwargs):
                    thumb_url]
             for key in keys:
                 row.append(",".join(values.get(key, [])))
+            row.append(image.creationEventDate().strftime(
+                "%Y-%m-%d %H:%M:%S.%Z"))
             writer.writerow(row)
 
         response = HttpResponse(csvfile.getvalue(), content_type="text/csv")
