@@ -89,12 +89,12 @@ def open_with_redirect_to_app(request, conn=None, **kwargs):
     for ann in anns:
         for key, val in ann["values"]:
             keys[key] += 1
-    # Sort keys by number of occurrences and take the top 4
+    # Sort keys by number of occurrences and take the top 3
     sorted_keys = sorted(keys.keys(), key=lambda x: keys[x], reverse=True)
     # Show max 5 columns (4 keys)
-    col_names = ["File Name"] + sorted_keys[:4]
+    col_names = ["File Name", "Dataset"] + sorted_keys[:3]
     col_width = 1 / len(col_names)
-    # column query string e.g. "File Name:0.25,Key1:0.25,Key2:0.25,Key3:0.25"
+    # column query string e.g. "File Name:0.25,Dataset:0.25,Key1:0.25,Key2:0.25"
     col_query = ",".join([f"{name}:{col_width}:.2f" for name in col_names])
     url += "&c=" + col_query
 
@@ -106,9 +106,11 @@ def omero_to_csv(request, id, conn=None, **kwargs):
 
     datasets = conn.getObjects("Dataset", opts={"project": id})
     image_ids = []
+    ds_names_by_iid = {}
     for dataset in datasets:
         for image in dataset.listChildren():
             image_ids.append(image.id)
+            ds_names_by_iid[image.id] = dataset.getName()
 
     # We use page=-1 to avoid pagination (default is 500)
     anns, experimenters = marshal_annotations(conn, image_ids=image_ids,
@@ -131,7 +133,7 @@ def omero_to_csv(request, id, conn=None, **kwargs):
             value = key_val[1]
             kvp[image_id][key].append(value)
 
-    column_names = ["File Path", "File Name", "Thumbnail"] + list(keys)
+    column_names = ["File Path", "File Name", "Dataset", "Thumbnail"] + list(keys)
 
     # write csv to return as http response
     with io.StringIO() as csvfile:
@@ -148,6 +150,7 @@ def omero_to_csv(request, id, conn=None, **kwargs):
             image_url += f"?show=image-{image_id}&_=.png"
             row = [image_url,
                    image.getName() if image else "Not Found",
+                   ds_names_by_iid.get(image_id, "Not Found"),
                    thumb_url]
             for key in keys:
                 row.append(",".join(values.get(key, [])))
