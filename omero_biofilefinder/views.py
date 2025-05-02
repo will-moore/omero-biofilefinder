@@ -137,7 +137,8 @@ def omero_to_csv(request, id, conn=None, **kwargs):
     column_names.append("Uploaded")
 
     # write csv to return as http response
-    with io.StringIO() as csvfile:
+    #with io.StringIO() as csvfile:
+    with open(tmp_path, "w") as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(column_names)
         for image_id in image_ids:
@@ -159,5 +160,8 @@ def omero_to_csv(request, id, conn=None, **kwargs):
                 "%Y-%m-%d %H:%M:%S.%Z"))
             writer.writerow(row)
 
+        file_ann = conn.createFileAnnfromLocalFile(
+            tmp_path, mimetype="text/plain", ns="BFF", desc=None)
+        
         response = HttpResponse(csvfile.getvalue(), content_type="text/csv")
         return response
