@@ -165,13 +165,12 @@ def omero_to_csv(request, id, conn=None, **kwargs):
                 "%Y-%m-%d %H:%M:%S.%Z"))
             writer.writerow(row)
 
-        group_id = project.getDetails().getGroup().getId()
-        conn.SERVICE_OPTS.setOmeroGroup(group_id)
-        print(conn.SERVICE_OPTS.getOmeroGroup())
-        file_ann = conn.createFileAnnfromLocalFile(
-            tmp_path, mimetype="text/plain", ns="BFF", desc=None)
-        anno = project.linkAnnotation(file_ann)
-        return anno.id
+    group_id = project.getDetails().getGroup().getId()
+    conn.SERVICE_OPTS.setOmeroGroup(group_id)
+    file_ann = conn.createFileAnnfromLocalFile(
+        tmp_path, mimetype="text/plain", ns="BFF", desc=None)
+    anno = project.linkAnnotation(file_ann)
+    return anno.id
         
 
         #response = HttpResponse(csvfile.getvalue(), content_type="text/csv")
