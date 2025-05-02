@@ -58,7 +58,9 @@ def open_with_redirect_to_app(request, conn=None, **kwargs):
 
     project_id = request.GET.get("project")
     anno_id = omero_to_csv(request, project_id, conn=conn, **kwargs)
-    csv_url = f"http://ctome01ld.jax.org:4080/webclient/annotation/{anno_id}"
+    csv_url = request.build_absolute_uri(reverse("webclient"))
+            # we end url with .png so that BFF enables open-with "Browser"
+    csv_url += f"/annotation/{anno_id}&_=.csv"
     csv_url = wrap_url(request, csv_url, conn)
 
     # Including the sessionUuid allows request from BFF to join the session
@@ -163,6 +165,8 @@ def omero_to_csv(request, id, conn=None, **kwargs):
                 "%Y-%m-%d %H:%M:%S.%Z"))
             writer.writerow(row)
 
+        group_id = project.getDetails().group.id
+        conn.SERVICE_OPTS.setOmeroGroup(group_id)
         file_ann = conn.createFileAnnfromLocalFile(
             tmp_path, mimetype="text/plain", ns="BFF", desc=None)
         anno = project.linkAnnotation(file_ann)
