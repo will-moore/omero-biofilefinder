@@ -58,9 +58,9 @@ def open_with_redirect_to_app(request, conn=None, **kwargs):
 
     project_id = request.GET.get("project")
     anno_id = omero_to_csv(request, project_id, conn=conn, **kwargs)
-    csv_url = request.build_absolute_uri(reverse("webclient"))
+    csv_url = request.build_absolute_uri(reverse("webindex"))
             # we end url with .png so that BFF enables open-with "Browser"
-    csv_url += f"/annotation/{anno_id}&_=.csv"
+    csv_url += f"annotation/{anno_id}&_=.csv"
     csv_url = wrap_url(request, csv_url, conn)
 
     # Including the sessionUuid allows request from BFF to join the session
