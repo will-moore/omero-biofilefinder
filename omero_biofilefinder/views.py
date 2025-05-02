@@ -104,7 +104,7 @@ def open_with_redirect_to_app(request, conn=None, **kwargs):
     return HttpResponseRedirect(url)
 
 
-@login_required()
+#@login_required()
 def omero_to_csv(request, id, conn=None, **kwargs):
 
     project = conn.getObject("Project", id)
@@ -142,6 +142,7 @@ def omero_to_csv(request, id, conn=None, **kwargs):
 
     # write csv to return as http response
     #with io.StringIO() as csvfile:
+    return
     tmp_path = "/tmp/bff_file.csv"
     with open(tmp_path, "w") as csvfile:
         writer = csv.writer(csvfile)
@@ -167,6 +168,7 @@ def omero_to_csv(request, id, conn=None, **kwargs):
 
         group_id = project.getDetails().getGroup().getId()
         conn.SERVICE_OPTS.setOmeroGroup(group_id)
+        print(conn.SERVICE_OPTS.getOmeroGroup())
         file_ann = conn.createFileAnnfromLocalFile(
             tmp_path, mimetype="text/plain", ns="BFF", desc=None)
         anno = project.linkAnnotation(file_ann)
