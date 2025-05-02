@@ -57,7 +57,8 @@ def open_with_redirect_to_app(request, conn=None, **kwargs):
     """
 
     project_id = request.GET.get("project")
-    csv_url = reverse("omero_biofilefinder_csv", kwargs={"id": project_id})
+    anno_id = omero_to_csv(request, project_id, conn=conn, **kwargs)
+    csv_url = f"http://ctome01ld.jax.org:4080/webclient/annotation/{anno_id}"
     csv_url = wrap_url(request, csv_url, conn)
 
     # Including the sessionUuid allows request from BFF to join the session
@@ -104,6 +105,7 @@ def open_with_redirect_to_app(request, conn=None, **kwargs):
 @login_required()
 def omero_to_csv(request, id, conn=None, **kwargs):
 
+    project = conn.getObject("Project", id)
     datasets = conn.getObjects("Dataset", opts={"project": id})
     image_ids = []
     ds_names_by_iid = {}
@@ -138,6 +140,7 @@ def omero_to_csv(request, id, conn=None, **kwargs):
 
     # write csv to return as http response
     #with io.StringIO() as csvfile:
+    tmp_path = "/tmp/bff_file.csv"
     with open(tmp_path, "w") as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(column_names)
@@ -162,6 +165,9 @@ def omero_to_csv(request, id, conn=None, **kwargs):
 
         file_ann = conn.createFileAnnfromLocalFile(
             tmp_path, mimetype="text/plain", ns="BFF", desc=None)
+        anno = project.linkAnnotation(file_ann)
+        return anno.id
         
-        response = HttpResponse(csvfile.getvalue(), content_type="text/csv")
-        return response
+
+        #response = HttpResponse(csvfile.getvalue(), content_type="text/csv")
+        #return response
