@@ -86,7 +86,7 @@ def open_with_redirect_to_app(request, conn=None, **kwargs):
     # Show max 5 columns (4 keys)
     col_names = ["File Name", "Dataset"] + sorted_keys[:3]
     col_width = 1 / len(col_names)
-    # column query string e.g. "File Name:0.25,Dataset:0.25,Key1:0.25,Key2:0.25"
+    # column query e.g. "File Name:0.25,Dataset:0.25,Key1:0.25,Key2:0.25"
     col_query = ",".join([f"{name}:{col_width}:.2f" for name in col_names])
     url += "&c=" + col_query
 
@@ -125,7 +125,8 @@ def omero_to_csv(request, id, conn=None, **kwargs):
             value = key_val[1]
             kvp[image_id][key].append(value)
 
-    column_names = ["File Path", "File Name", "Dataset", "Thumbnail"] + list(keys)
+    column_names = ["File Path", "File Name", "Dataset", "Thumbnail"]
+    column_names.extend(list(keys))
     column_names.append("Uploaded")
 
     # write csv to return as http response
@@ -175,7 +176,8 @@ def app(request, url, **kwargs):
         if url.endswith(".js") and url.startswith("app."):
             # e.g. "/omero_biofilefinder/bff"
             basename = reverse("omero_biofilefinder_index") + "bff"
-            content = content.replace('{basename:""}', f'{{basename:"{basename}"}}')
+            content = content.replace('{basename:""}',
+                                      f'{{basename:"{basename}"}}')
 
         response = HttpResponse(content)
         if (url.endswith(".js")):
