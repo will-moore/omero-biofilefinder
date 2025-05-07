@@ -36,16 +36,6 @@ def index(request, conn=None, **kwargs):
     return render(request, "omero_biofilefinder/index.html", {})
 
 
-def wrap_url(request, url, conn):
-    """
-    We need to enable the url to work when accessed from the BFF app.
-
-    The URL must be aboslute and include the sessionUuid and server
-    """
-    url = request.build_absolute_uri(url)
-    return f"{url}?bsession={conn._sessionUuid}&server=1"
-
-
 @login_required()
 def open_with_redirect_to_app(request, conn=None, **kwargs):
     """
@@ -58,7 +48,7 @@ def open_with_redirect_to_app(request, conn=None, **kwargs):
 
     project_id = request.GET.get("project")
     csv_url = reverse("omero_biofilefinder_csv", kwargs={"id": project_id})
-    csv_url = wrap_url(request, csv_url, conn)
+    csv_url = request.build_absolute_uri(csv_url)
 
     # Including the sessionUuid allows request from BFF to join the session
     # TODO: lookup which server we are connected to if there are more than one
@@ -68,7 +58,9 @@ def open_with_redirect_to_app(request, conn=None, **kwargs):
         "name": "omero.csv",
     }
     s = urllib.parse.quote(json.dumps(source))
-    url = f"https://bff.allencell.org/app?source={s}"
+    bff_static = reverse("bff_static", kwargs={"url": ""})
+    url = f"{bff_static}?source={s}"
+    # url = f"https://bff.allencell.org/app?source={s}"
 
     # We want to pick some columns to show in the BFF app
     # Need to know a few Keys from Key-Value pairs....
@@ -144,7 +136,7 @@ def omero_to_csv(request, id, conn=None, **kwargs):
             values = kvp.get(image_id, {})
             thumb_url = reverse("webgateway_render_thumbnail",
                                 kwargs={"iid": image_id})
-            thumb_url = wrap_url(request, thumb_url, conn)
+            thumb_url = request.build_absolute_uri(thumb_url)
             image = conn.getObject("Image", image_id)
             image_url = request.build_absolute_uri(reverse("webindex"))
             # we end url with .png so that BFF enables open-with "Browser"
@@ -161,3 +153,37 @@ def omero_to_csv(request, id, conn=None, **kwargs):
 
         response = HttpResponse(csvfile.getvalue(), content_type="text/csv")
         return response
+
+
+def app(request, url, **kwargs):
+
+    from django.contrib.staticfiles.storage import staticfiles_storage
+
+    if len(url) == 0:
+        url = "index.html"
+
+    static_path = staticfiles_storage.path("omero_biofilefinder/dist/" + url)
+
+    mode = "r"
+    if url.endswith(".png"):
+        mode = "rb"
+
+    with open(static_path, mode=mode) as f:
+        content = f.read()
+
+        # We need to replace the basename in the js file
+        if url.endswith(".js") and url.startswith("app."):
+            # e.g. "/omero_biofilefinder/bff"
+            basename = reverse("omero_biofilefinder_index") + "bff"
+            content = content.replace('{basename:""}', f'{{basename:"{basename}"}}')
+
+        response = HttpResponse(content)
+        if (url.endswith(".js")):
+            response["Content-Type"] = "application/javascript"
+        elif (url.endswith(".css")):
+            response["Content-Type"] = "text/css"
+        elif (url.endswith(".png")):
+            response["Content-Type"] = "image/png"
+        elif (url.endswith(".html")):
+            response["Content-Type"] = "text/html"
+    return response
