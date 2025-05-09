@@ -186,7 +186,7 @@ def export_to_bff(conn, script_params):
     Export image Key-Value pairs to a csv or parquet file for Biofile Finder
     """
 
-    max_datasets = 100
+    max_datasets = 500
     base_url = script_params["Base_URL"]
     csv_names = []
 
