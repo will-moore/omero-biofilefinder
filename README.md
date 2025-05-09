@@ -54,6 +54,25 @@ Configure `Open with`. Currently we only support opening a `Project` in OMERO Bi
 Now restart your `omero-web` server.
 
 
+Updating the BioFile Finder app
+===============================
+
+To update the `BioFile Finder` app, checkout the code, build and replace existing static files:
+
+NB: currently this requires the branch at https://github.com/will-moore/biofile-finder/tree/serving-sub-dirs
+
+    $ git clone git@github.com:will-moore/biofile-finder.git
+    $ cd biofile-finder
+    $ git checkout origin/serving-sub-dirs
+    $ npm install
+    $ npm --prefix packages/web run build
+
+Replace existing static files in this repo with the build artifacts:
+
+    $ rm /PATH/TO/omero-biofilefinder/omero_biofilefinder/static/omero_biofilefinder/dist/*
+    $ cp packages/web/dist/* /PATH/TO/omero-biofilefinder/omero_biofilefinder/static/omero_biofilefinder/dist/
+
+
 Further Info
 ============
 
