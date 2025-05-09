@@ -53,6 +53,20 @@ Configure `Open with`. Currently we only support opening a `Project` in OMERO Bi
 
 Now restart your `omero-web` server.
 
+Export script
+-------------
+
+We use an OMERO.server script to build a `parquet` file that is read by BioFile Finder.
+
+TODO: add script upload instructions and/or add functionality in the app to upload it "automatically".
+
+The script can be run directly (without using the OMERO scripting service). This will use `cli_login` to login
+to your chosen OMERO server. The exported data will get written to your current directory (where you're running the script)
+and the parquet file will only get attached to the target (e.g. Project or Dataset) if you can annotate it.
+
+    $ cd omero_biofilefinder/scripts
+    $ python omero/annotation_scripts/Export_to_Biofile_Finder.py Project:501 --base-url https://your-server.org/
+
 
 Further Info
 ============
