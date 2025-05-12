@@ -50,6 +50,11 @@ def open_with_redirect_to_app(request, conn=None, **kwargs):
     csv_url = reverse("omero_biofilefinder_csv", kwargs={"id": project_id})
     csv_url = request.build_absolute_uri(csv_url)
 
+    # Hack since Django may not know it's under https. Assume it IS!
+    if "localhost:" not in csv_url:
+        # localhost check allows for dev testing without https
+        csv_url = csv_url.replace("http://", "https://")
+
     # Including the sessionUuid allows request from BFF to join the session
     # TODO: lookup which server we are connected to if there are more than one
     source = {
