@@ -59,7 +59,7 @@ def open_with_redirect_to_app(request, conn=None, **kwargs):
     project_id = request.GET.get("project")
     anno_id = omero_to_csv(request, project_id, conn=conn, **kwargs)
     csv_url = request.build_absolute_uri(reverse("webindex"))
-            # we end url with .png so that BFF enables open-with "Browser"
+    # idk if need to end url with .csv for BFF, but doing it just in case
     csv_url += f"annotation/{anno_id}&_=.csv"
     csv_url = wrap_url(request, csv_url, conn)
 
