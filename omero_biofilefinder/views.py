@@ -57,7 +57,10 @@ def open_with_redirect_to_app(request, conn=None, **kwargs):
     """
 
     project_id = request.GET.get("project")
-    csv_url = reverse("omero_biofilefinder_csv", kwargs={"id": project_id})
+    anno_id = omero_to_csv(request, project_id, conn=conn, **kwargs)
+    csv_url = request.build_absolute_uri(reverse("webindex"))
+    # idk if need to end url with .csv for BFF, but doing it just in case
+    csv_url += f"annotation/{anno_id}&_=.csv"
     csv_url = wrap_url(request, csv_url, conn)
 
     # Including the sessionUuid allows request from BFF to join the session
@@ -101,9 +104,10 @@ def open_with_redirect_to_app(request, conn=None, **kwargs):
     return HttpResponseRedirect(url)
 
 
-@login_required()
+#@login_required()
 def omero_to_csv(request, id, conn=None, **kwargs):
 
+    project = conn.getObject("Project", id)
     datasets = conn.getObjects("Dataset", opts={"project": id})
     image_ids = []
     ds_names_by_iid = {}
@@ -137,7 +141,9 @@ def omero_to_csv(request, id, conn=None, **kwargs):
     column_names.append("Uploaded")
 
     # write csv to return as http response
-    with io.StringIO() as csvfile:
+    #with io.StringIO() as csvfile:
+    tmp_path = "/tmp/bff_file.csv"
+    with open(tmp_path, "w") as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(column_names)
         for image_id in image_ids:
@@ -159,5 +165,13 @@ def omero_to_csv(request, id, conn=None, **kwargs):
                 "%Y-%m-%d %H:%M:%S.%Z"))
             writer.writerow(row)
 
-        response = HttpResponse(csvfile.getvalue(), content_type="text/csv")
-        return response
+    group_id = project.getDetails().getGroup().getId()
+    conn.SERVICE_OPTS.setOmeroGroup(group_id)
+    file_ann = conn.createFileAnnfromLocalFile(
+        tmp_path, mimetype="text/plain", ns="BFF", desc=None)
+    anno = project.linkAnnotation(file_ann)
+    return anno.id
+        
+
+        #response = HttpResponse(csvfile.getvalue(), content_type="text/csv")
+        #return response
