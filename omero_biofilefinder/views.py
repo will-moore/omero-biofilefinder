@@ -21,7 +21,7 @@ import io
 import urllib
 import json
 from django.shortcuts import render
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponse
 from collections import defaultdict
 from django.urls import reverse
 
@@ -32,6 +32,7 @@ from . import biofilefinder_settings as settings
 from omeroweb.webclient.tree import marshal_annotations
 
 BFF_NAMESPACE = "omero_biofilefinder.parquet"
+
 
 @login_required()
 def index(request, conn=None, **kwargs):
@@ -46,7 +47,7 @@ def get_bff_url(request, data_url, fname, ext="csv"):
     data_url = request.build_absolute_uri(data_url)
     # Django may not know it's under https
     if settings.FORCE_HTTPS:
-        csv_url = csv_url.replace("http://", "https://")
+        data_url = data_url.replace("http://", "https://")
     source = {
         "uri": data_url,
         "type": ext,
@@ -68,7 +69,7 @@ def open_with_bff(request, conn=None, **kwargs):
     1. We generate a URL for loading csv for the project (on the fly)
     and then add that to a BFF url so it loads KVPs on the fly.
     2. If there is a BFF parquet file already attached to the project,
-    we can use that instead of the csv file. 
+    we can use that instead of the csv file.
     """
 
     project_id = request.GET.get("project")
@@ -119,7 +120,8 @@ def open_with_bff(request, conn=None, **kwargs):
                     "size": ann.getFile().getSize(),
                     "created": ann.creationEventDate().strftime(
                         "%Y-%m-%d %H:%M:%S.%Z"),
-                    "bbf_url": get_bff_url(request, pq_url, "omero.parquet", ext="parquet"),
+                    "bbf_url": get_bff_url(request, pq_url, "omero.parquet",
+                                           ext="parquet"),
                 })
 
     context = {
@@ -194,8 +196,6 @@ def omero_to_csv(request, id, conn=None, **kwargs):
         return response
 
 
-# We don't need to login, but if not logged in, the BFF app won't work!
-@login_required()
 def app(request, url, **kwargs):
 
     from django.contrib.staticfiles.storage import staticfiles_storage
