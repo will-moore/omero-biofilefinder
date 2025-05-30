@@ -35,6 +35,10 @@ from omero.rtypes import rstring, rlong, robject
 import csv
 import os
 
+from pyarrow import csv as pa_csv
+import pyarrow as pa
+import pyarrow.parquet as pq
+
 from collections import defaultdict
 from datetime import datetime
 
@@ -215,9 +219,6 @@ def export_to_bff(conn, script_params):
             csv_names.append(csv_name)
 
     # Finally, combine the csv files into a single file
-    from pyarrow import csv as pa_csv
-    import pyarrow as pa
-    import pyarrow.parquet as pq
     data_tables = [pa_csv.read_csv(csv_name) for csv_name in csv_names]
     combined_table = pa.concat_tables(data_tables, promote_options="default")
     combined_table.combine_chunks()
@@ -248,7 +249,7 @@ def run_script():
 
     client = scripts.client(
         'Export_to_Biofile_Finder.py',
-        """Export image Key-Value pairs to a parquet file for Biofile Finder""",
+        """Export image Key-Value pairs to parquet file for Biofile Finder""",
 
         scripts.String(
             "Data_Type", optional=False, grouping="1",
@@ -308,7 +309,8 @@ if __name__ == "__main__":
             parser.add_argument(
                 "target", help="E.g 'Project:123' or 'Dataset:123'")
             parser.add_argument(
-                "--base-url", help="The full or relative URL to OMERO.web e.g. https://server.com/ or /",
+                "--base-url", help=("The full or relative URL to OMERO.web"
+                                    " e.g. https://server.com/ or /"),
                 default="/")
             args = parser.parse_args()
             dtype, obj_id = args.target.split(":")
