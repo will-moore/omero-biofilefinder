@@ -27,6 +27,8 @@ from django.urls import reverse
 
 from omeroweb.decorators import login_required
 
+from . import biofilefinder_settings as settings
+
 from omeroweb.webclient.tree import marshal_annotations
 
 
@@ -50,9 +52,8 @@ def open_with_redirect_to_app(request, conn=None, **kwargs):
     csv_url = reverse("omero_biofilefinder_csv", kwargs={"id": project_id})
     csv_url = request.build_absolute_uri(csv_url)
 
-    # Hack since Django may not know it's under https. Assume it IS!
-    if "localhost:" not in csv_url:
-        # localhost check allows for dev testing without https
+    # Django may not know it's under https
+    if settings.FORCE_HTTPS:
         csv_url = csv_url.replace("http://", "https://")
 
     # Including the sessionUuid allows request from BFF to join the session
