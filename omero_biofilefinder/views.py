@@ -37,6 +37,22 @@ def index(request, conn=None, **kwargs):
     return render(request, "omero_biofilefinder/index.html", {})
 
 
+def get_bff_url(request, data_url, fname, ext="csv"):
+    """
+    We build config into query params for the BFF app
+    """
+    data_url = request.build_absolute_uri(data_url)
+    source = {
+        "uri": data_url,
+        "type": ext,
+        "name": fname,
+    }
+    s = urllib.parse.quote(json.dumps(source))
+    bff_static = reverse("bff_static", kwargs={"url": ""})
+    bff_url = f"{bff_static}?source={s}"
+    return bff_url
+
+
 @login_required()
 def open_with_bff(request, conn=None, **kwargs):
     """
@@ -52,19 +68,7 @@ def open_with_bff(request, conn=None, **kwargs):
 
     project_id = request.GET.get("project")
     csv_url = reverse("omero_biofilefinder_csv", kwargs={"id": project_id})
-    csv_url = request.build_absolute_uri(csv_url)
-
-    # Including the sessionUuid allows request from BFF to join the session
-    # TODO: lookup which server we are connected to if there are more than one
-    source = {
-        "uri": csv_url,
-        "type": "csv",
-        "name": "omero.csv",
-    }
-    s = urllib.parse.quote(json.dumps(source))
-    bff_static = reverse("bff_static", kwargs={"url": ""})
-    bff_url = f"{bff_static}?source={s}"
-    # bff_url = f"https://bff.allencell.org/app?source={s}"
+    bff_url = get_bff_url(request, csv_url, "omero.csv", ext="csv")
 
     # We want to pick some columns to show in the BFF app
     # Need to know a few Keys from Key-Value pairs....
@@ -101,6 +105,8 @@ def open_with_bff(request, conn=None, **kwargs):
     if project is not None:
         for ann in project.listAnnotations(ns=BFF_NAMESPACE):
             if ann.getFile() is not None:
+                pq_url = reverse("omero_biofilefinder_fileann",
+                                 kwargs={"annId": ann.id})
                 bff_parquet_anns.append({
                     "id": ann.id,
                     "name": ann.getFile().getName(),
@@ -108,8 +114,7 @@ def open_with_bff(request, conn=None, **kwargs):
                     "size": ann.getFile().getSize(),
                     "created": ann.creationEventDate().strftime(
                         "%Y-%m-%d %H:%M:%S.%Z"),
-                    # FIXME: this is not correct!
-                    "bbf_url": f"{bff_static}?source={s}&parquet={ann.id}",
+                    "bbf_url": get_bff_url(request, pq_url, "omero.parquet", ext="parquet"),
                 })
 
     context = {
@@ -184,6 +189,8 @@ def omero_to_csv(request, id, conn=None, **kwargs):
         return response
 
 
+# We don't need to login, but if not logged in, the BFF app won't work!
+@login_required()
 def app(request, url, **kwargs):
 
     from django.contrib.staticfiles.storage import staticfiles_storage

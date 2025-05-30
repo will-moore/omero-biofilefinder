@@ -19,6 +19,7 @@
 from django.urls import path, re_path
 
 from . import views
+from omeroweb.webclient.views import download_annotation
 
 urlpatterns = [
     # index 'home page' of the app
@@ -26,6 +27,10 @@ urlpatterns = [
 
     path("open_with_bff", views.open_with_bff,
          name="omero_biofilefinder_openwith"),
+
+    # when BFF loads a parquet file, the url needs to end with .parquet
+    path("fileann/<int:annId>/omero.parquet", download_annotation,
+         name="omero_biofilefinder_fileann"),
 
     path("project/<int:id>/csv/", views.omero_to_csv,
          name="omero_biofilefinder_csv"),
