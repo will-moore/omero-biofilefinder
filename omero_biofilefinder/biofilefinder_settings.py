@@ -33,5 +33,6 @@ BIOFILEFINDER_SETTINGS_MAPPING = {
           "know it is running under https.")],
 }
 
-process_custom_settings(sys.modules[__name__], 'BIOFILEFINDER_SETTINGS_MAPPING')
+process_custom_settings(sys.modules[__name__],
+                        'BIOFILEFINDER_SETTINGS_MAPPING')
 report_settings(sys.modules[__name__])
