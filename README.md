@@ -58,17 +58,30 @@ To work around this, you can force Django to use `https` for absolute URLs with:
 
 Now restart your `omero-web` server.
 
+Export script
+-------------
+
+We use an OMERO.server script to build a `parquet` file that is read by BioFile Finder.
+
+TODO: add script upload instructions and/or add functionality in the app to upload it "automatically".
+
+The script can be run directly (without using the OMERO scripting service). This will use `cli_login` to login
+to your chosen OMERO server. The exported data will get written to your current directory (where you're running the script)
+and the parquet file will only get attached to the target (e.g. Project or Dataset) if you can annotate it.
+
+    $ cd omero_biofilefinder/scripts
+    $ python omero/annotation_scripts/Export_to_Biofile_Finder.py Project:501 --base-url https://your-server.org/
+
 
 Updating the BioFile Finder app
 ===============================
 
 To update the `BioFile Finder` app, checkout the code, build and replace existing static files:
 
-NB: currently this requires the branch at https://github.com/will-moore/biofile-finder/tree/serving-sub-dirs
+NB: this uses [PR #519](https://github.com/AllenInstitute/biofile-finder/pull/519).
 
-    $ git clone git@github.com:will-moore/biofile-finder.git
+    $ git clone git@github.com:AllenInstitute/biofile-finder.git
     $ cd biofile-finder
-    $ git checkout origin/serving-sub-dirs
     $ npm install
     $ npm --prefix packages/web run build
 
