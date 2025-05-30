@@ -40,6 +40,7 @@ from datetime import datetime
 
 BFF_NAMESPACE = "omero_biofilefinder.parquet"
 
+
 def marshal_annotations(
     conn,
     project_ids=None,
@@ -104,17 +105,17 @@ def marshal_annotations(
 
         for link in qs.findAllByQuery(q, params, conn.SERVICE_OPTS):
             annotation = link.child
-            annClass = annotation.__class__.__name__
+            ann_class = annotation.__class__.__name__
 
             ann = {}
-            ann["class"] = annClass
+            ann["class"] = ann_class
             ann["id"] = annotation.id.val
-            if annClass == "MapAnnotationI":
+            if ann_class == "MapAnnotationI":
                 kvs = [[kv.name, kv.value] for kv in annotation.getMapValue()]
                 ann["values"] = kvs
             ann["link"] = {"parent": {"id": link.parent.id.val}}
             annotations.append(ann)
-    
+
     return annotations
 
 
@@ -133,7 +134,7 @@ def process_dataset_to_csv(conn, dataset, base_url):
             "name": image.getName(),
             "date": image.creationEventDate().strftime("%Y-%m-%d %H:%M:%S.%Z")
         }
-    
+
     # Collect all the Keys...
     keys = set()
 
@@ -228,7 +229,8 @@ def export_to_bff(conn, script_params):
     pq.write_table(combined_table, export_file)
 
     if not parent.canAnnotate():
-        return None, f"{export_file} created but not linked to {parent.getName()}"
+        msg = f"{export_file} created but not linked to {parent.getName()}"
+        return None, msg
 
     file_annotation, message = script_utils.create_link_file_annotation(
         conn, export_file, parent,
@@ -246,7 +248,7 @@ def run_script():
 
     client = scripts.client(
         'Export_to_Biofile_Finder.py',
-        """Export image Key-Value pairs to a csv or parquet file for Biofile Finder""",
+        """Export image Key-Value pairs to a parquet file for Biofile Finder""",
 
         scripts.String(
             "Data_Type", optional=False, grouping="1",
@@ -259,7 +261,8 @@ def run_script():
 
         scripts.String(
             "Base_URL", optional=True, grouping="3",
-            description="The full or relative URL to OMERO.web e.g. https://server.com/ or /",
+            description=("The full or relative URL to OMERO.web"
+                         " e.g. https://server.com/ or /"),
             default="/"),
 
         authors=["William Moore", "OME Team"],
