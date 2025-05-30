@@ -34,5 +34,6 @@ urlpatterns = [
 
     path("project/<int:id>/csv/", views.omero_to_csv,
          name="omero_biofilefinder_csv"),
+
     re_path(r'^bff/app/(?P<url>.*)$', views.app, name='bff_static'),
 ]

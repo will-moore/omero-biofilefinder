@@ -27,6 +27,8 @@ from django.urls import reverse
 
 from omeroweb.decorators import login_required
 
+from . import biofilefinder_settings as settings
+
 from omeroweb.webclient.tree import marshal_annotations
 
 BFF_NAMESPACE = "omero_biofilefinder.parquet"
@@ -42,6 +44,9 @@ def get_bff_url(request, data_url, fname, ext="csv"):
     We build config into query params for the BFF app
     """
     data_url = request.build_absolute_uri(data_url)
+    # Django may not know it's under https
+    if settings.FORCE_HTTPS:
+        csv_url = csv_url.replace("http://", "https://")
     source = {
         "uri": data_url,
         "type": ext,
@@ -195,6 +200,7 @@ def app(request, url, **kwargs):
 
     from django.contrib.staticfiles.storage import staticfiles_storage
 
+    print("app called with url:", url)
     if len(url) == 0:
         url = "index.html"
 
