@@ -29,6 +29,7 @@ from omeroweb.decorators import login_required
 
 from omeroweb.webclient.tree import marshal_annotations
 
+BFF_NAMESPACE = "omero_biofilefinder.parquet"
 
 @login_required()
 def index(request, conn=None, **kwargs):
@@ -37,13 +38,16 @@ def index(request, conn=None, **kwargs):
 
 
 @login_required()
-def open_with_redirect_to_app(request, conn=None, **kwargs):
+def open_with_bff(request, conn=None, **kwargs):
     """
     Open-with > BFF goes here...
 
-    We generate a URL for loading csv for the project and then
-    redirect to the BFF app with the source parameter set to the
-    csv URL.
+    We give various options to the user to open with BFF.
+
+    1. We generate a URL for loading csv for the project (on the fly)
+    and then add that to a BFF url so it loads KVPs on the fly.
+    2. If there is a BFF parquet file already attached to the project,
+    we can use that instead of the csv file. 
     """
 
     project_id = request.GET.get("project")
@@ -59,8 +63,8 @@ def open_with_redirect_to_app(request, conn=None, **kwargs):
     }
     s = urllib.parse.quote(json.dumps(source))
     bff_static = reverse("bff_static", kwargs={"url": ""})
-    url = f"{bff_static}?source={s}"
-    # url = f"https://bff.allencell.org/app?source={s}"
+    bff_url = f"{bff_static}?source={s}"
+    # bff_url = f"https://bff.allencell.org/app?source={s}"
 
     # We want to pick some columns to show in the BFF app
     # Need to know a few Keys from Key-Value pairs....
@@ -88,9 +92,33 @@ def open_with_redirect_to_app(request, conn=None, **kwargs):
     col_width = 1 / len(col_names)
     # column query e.g. "File Name:0.25,Dataset:0.25,Key1:0.25,Key2:0.25"
     col_query = ",".join([f"{name}:{col_width}:.2f" for name in col_names])
-    url += "&c=" + col_query
+    bff_url += "&c=" + col_query
 
-    return HttpResponseRedirect(url)
+    # If there is a parquet file already attached to the project, we can
+    # use that instead of the csv file.
+    project = conn.getObject("Project", int(project_id))
+    bff_parquet_anns = []
+    if project is not None:
+        for ann in project.listAnnotations(ns=BFF_NAMESPACE):
+            if ann.getFile() is not None:
+                bff_parquet_anns.append({
+                    "id": ann.id,
+                    "name": ann.getFile().getName(),
+                    "description": ann.getDescription(),
+                    "size": ann.getFile().getSize(),
+                    "created": ann.creationEventDate().strftime(
+                        "%Y-%m-%d %H:%M:%S.%Z"),
+                    # FIXME: this is not correct!
+                    "bbf_url": f"{bff_static}?source={s}&parquet={ann.id}",
+                })
+
+    context = {
+        "bff_url": bff_url,
+        "project_id": project_id,
+        "bff_parquet_anns": bff_parquet_anns,
+    }
+
+    return render(request, "omero_biofilefinder/open_with_bff.html", context)
 
 
 @login_required()

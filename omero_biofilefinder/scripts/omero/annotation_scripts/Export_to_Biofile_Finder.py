@@ -38,6 +38,8 @@ import os
 from collections import defaultdict
 from datetime import datetime
 
+BFF_NAMESPACE = "omero_biofilefinder.parquet"
+
 def marshal_annotations(
     conn,
     project_ids=None,
@@ -116,7 +118,7 @@ def marshal_annotations(
     return annotations
 
 
-def process_dataset_to_csv(dataset, base_url):
+def process_dataset_to_csv(conn, dataset, base_url):
     print(f"Processing dataset {dataset.id}")
     export_file = f"Dataset:{dataset.id}_bff.csv"
     if os.path.exists(export_file):
@@ -200,7 +202,7 @@ def export_to_bff(conn, script_params):
             datasets.sort(key=lambda x: x.id)
             datasets = datasets[:max_datasets]
             for dataset in datasets:
-                csv_name = process_dataset_to_csv(dataset, base_url)
+                csv_name = process_dataset_to_csv(conn, dataset, base_url)
                 csv_names.append(csv_name)
     elif script_params["Data_Type"] == "Dataset":
         parent = conn.getObject("Dataset", script_params["IDs"][0])
@@ -208,7 +210,7 @@ def export_to_bff(conn, script_params):
         conn.SERVICE_OPTS.setOmeroGroup(group_id)
         for id in script_params["IDs"]:
             dataset = conn.getObject("Dataset", id)
-            csv_name = process_dataset_to_csv(dataset, base_url)
+            csv_name = process_dataset_to_csv(conn, dataset, base_url)
             csv_names.append(csv_name)
 
     # Finally, combine the csv files into a single file
@@ -230,7 +232,7 @@ def export_to_bff(conn, script_params):
 
     file_annotation, message = script_utils.create_link_file_annotation(
         conn, export_file, parent,
-        namespace="omero_biofilefinder", mimetype="application/vnd.apache.parquet",)
+        namespace=BFF_NAMESPACE, mimetype="application/vnd.apache.parquet",)
     return file_annotation, message
 
 
