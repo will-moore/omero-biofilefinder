@@ -126,7 +126,8 @@ def open_with_bff(request, conn=None, **kwargs):
 
     context = {
         "bff_url": bff_url,
-        "project_id": project_id,
+        "target": {"dtype": "project", "id": project_id,
+                   "name": project.getName()},
         "bff_parquet_anns": bff_parquet_anns,
     }
 
