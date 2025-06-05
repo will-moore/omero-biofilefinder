@@ -9,11 +9,17 @@ This plugin supports opening of OMERO data (e.g. a Project) in the BioFile Finde
 
 Key-Value pairs on Images in OMERO are converted into tabular data for BFF.
 
-NB: This app is currently at the proof-of-concept stage. Feedback welcome!
+For medium numbers of Images, Biofile Finder can load Key-Value pairs "on the fly", in a single
+http request. If the BFF app page is refreshed, it will re-load the Key-Value pairs from OMERO and this
+has been tested with over 400 Images.
 
-**WARNING** We include your OMERO session ID within URLs that BFF uses to access data from OMERO, such
-as the Thumbnail URL. You should not share the session ID with anyone while the session is still active.
+However, for much larger numbers of Images, the time to load Key-Value pairs could become too long for
+a single http request. In this case, there is the option to use a server-side OMERO.script to export
+the Key-Value pairs to a `parquet` file, attached to the Project. Then, Biofile Finder can load
+the `parquet` file directly. You will need an Admin to install the
+script on the server (see below) and it has a dependency of the `pyarrow` library.
 
+NB: This app is not yet "production ready" or supported by the OME team. Feedback welcome!
 
 
 Data in webclient - images and Key-Value pairs are from idr0021.
@@ -22,7 +28,8 @@ Data in webclient - images and Key-Value pairs are from idr0021.
 Open Project with BioFile Finder...
 <img width="420" alt="Image" src="https://github.com/user-attachments/assets/4e933502-b322-42b4-a19c-8de603e5427c" />
 
-This will open BioFile Finder in another tab. Here the images are grouped by `Gene Symbol`.
+This will open a page where you can select a `parquet` file to open in Biofile Finder, or you can directly open
+Biofile Finder to read data from OMERO "on the fly". Here the images are grouped by `Gene Symbol`.
 <img width="1510" alt="Image" src="https://github.com/user-attachments/assets/3993278e-b978-4e89-b886-6df587a1297b" />
 
 
@@ -58,17 +65,31 @@ To work around this, you can force Django to use `https` for absolute URLs with:
 
 Now restart your `omero-web` server.
 
+Export script
+-------------
+
+We use an OMERO.server script to build a `parquet` file that is read by BioFile Finder.
+
+    $ cd omero_biofilefinder/scripts
+    $ omero script upload --official omero/annotation_scripts/Export_to_Biofile_Finder.py
+
+The script can also be run locally (without using the OMERO scripting service). This will use `cli_login` to login
+to your chosen OMERO server. The exported data will get written to your current directory (where you're running the script)
+and the parquet file will only get attached to the target (e.g. Project or Dataset) if you can annotate it.
+
+    $ cd omero_biofilefinder/scripts
+    $ python omero/annotation_scripts/Export_to_Biofile_Finder.py Project:501 --base-url https://your-server.org/
+
 
 Updating the BioFile Finder app
 ===============================
 
 To update the `BioFile Finder` app, checkout the code, build and replace existing static files:
 
-NB: currently this requires the branch at https://github.com/will-moore/biofile-finder/tree/serving-sub-dirs
+NB: this uses [PR #519](https://github.com/AllenInstitute/biofile-finder/pull/519).
 
-    $ git clone git@github.com:will-moore/biofile-finder.git
+    $ git clone git@github.com:AllenInstitute/biofile-finder.git
     $ cd biofile-finder
-    $ git checkout origin/serving-sub-dirs
     $ npm install
     $ npm --prefix packages/web run build
 
