@@ -17,6 +17,7 @@ repos:
     hooks:
       - id: black
         args: [--target-version=py36]
+        exclude: omero_biofilefinder/static/omero_biofilefinder/dist/
 
   - repo: https://github.com/asottile/pyupgrade
     rev: v3.16.0
@@ -29,8 +30,13 @@ repos:
     rev: v4.6.0
     hooks:
       - id: trailing-whitespace
-        exclude: .bumpversion.cfg
+        exclude: |
+          (?x)(
+              ^.bumpversion.cfg/|
+              ^omero_biofilefinder/static/omero_biofilefinder/dist/
+          )
       - id: end-of-file-fixer
+        exclude: omero_biofilefinder/static/omero_biofilefinder/dist/
       - id: check-json
         files: \.(json)$
       - id: check-yaml

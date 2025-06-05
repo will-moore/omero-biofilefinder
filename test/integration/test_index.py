@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright (c) 2024 University of Dundee.
+# Copyright (c) 2025 University of Dundee.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -19,10 +19,10 @@
 
 """Integration tests for index page."""
 
-from omeroweb.testlib import IWebTest, get
 import pytest
 from django.urls import reverse
 from omero.gateway import BlitzGateway
+from omeroweb.testlib import IWebTest, get
 
 
 def get_connection(user, group_id=None):
