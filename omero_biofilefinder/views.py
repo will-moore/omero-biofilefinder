@@ -18,23 +18,21 @@
 
 import csv
 import io
-import urllib
 import json
-from django.shortcuts import render
-from django.http import HttpResponse, Http404
+import urllib
 from collections import defaultdict
-from django.urls import reverse
-
-from omeroweb.decorators import login_required
-from omeroweb.webgateway.views import perform_table_query
-
-from . import biofilefinder_settings as settings
-
-from omeroweb.webclient.tree import marshal_annotations
 
 # TODO: try/except for pyarrow import
 import pyarrow as pa
 import pyarrow.parquet as pq
+from django.http import Http404, HttpResponse
+from django.shortcuts import render
+from django.urls import reverse
+from omeroweb.decorators import login_required
+from omeroweb.webclient.tree import marshal_annotations
+from omeroweb.webgateway.views import perform_table_query
+
+from . import biofilefinder_settings as settings
 
 BFF_NAMESPACE = "omero_biofilefinder.parquet"
 TABLE_NAMESPACE = "openmicroscopy.org/omero/bulk_annotations"
@@ -88,13 +86,13 @@ def open_with_bff(request, conn=None, **kwargs):
     else:
         obj_id = int(obj_id)
 
-    csv_url = reverse("omero_biofilefinder_csv",
-                      kwargs={"obj_id": obj_id,
-                              "obj_type": obj_type})
+    csv_url = reverse(
+        "omero_biofilefinder_csv", kwargs={"obj_id": obj_id, "obj_type": obj_type}
+    )
     bff_url = get_bff_url(request, csv_url, "omero.csv", ext="csv")
 
-    # We want to pick some columns to show in the BFF app
-    # Need to know a few Keys from Key-Value pairs....
+    # We want to pick some columns to show in the BFF app.
+    # Need to know a few Keys from Key-Value pairs.
     # Let's just check first 5 images...
     image_ids = []
     obj = conn.getObject(obj_type, obj_id)
@@ -124,9 +122,8 @@ def open_with_bff(request, conn=None, **kwargs):
         return HttpResponse(f"No images found in {obj_type}:{obj_id}")
 
     # Get KVP keys for 5 images...
-    anns, experimenters = marshal_annotations(conn, image_ids=image_ids,
-                                              ann_type="map")
-    keys = defaultdict(lambda: 0)
+    anns, experimenters = marshal_annotations(conn, image_ids=image_ids, ann_type="map")
+    keys = defaultdict(int)
     for ann in anns:
         for key, val in ann["values"]:
             keys[key] += 1
@@ -145,36 +142,39 @@ def open_with_bff(request, conn=None, **kwargs):
     table_anns = []
     for ann in obj.listAnnotations(ns=BFF_NAMESPACE):
         if ann.getFile() is not None:
-            pq_url = reverse("omero_biofilefinder_fileann",
-                             kwargs={"ann_id": ann.id})
-            bff_parquet_anns.append({
+            pq_url = reverse("omero_biofilefinder_fileann", kwargs={"ann_id": ann.id})
+            bff_parquet_anns.append(
+                {
+                    "id": ann.id,
+                    "name": ann.getFile().getName(),
+                    "description": ann.getDescription(),
+                    "size": ann.getFile().getSize(),
+                    "created": ann.creationEventDate().strftime("%Y-%m-%d %H:%M:%S.%Z"),
+                    "bbf_url": get_bff_url(
+                        request, pq_url, "omero.parquet", ext="parquet"
+                    ),
+                }
+            )
+    for ann in obj.listAnnotations(ns=TABLE_NAMESPACE):
+        table_pq_url = reverse(
+            "omero_biofilefinder_table_to_parquet", kwargs={"ann_id": ann.id}
+        )
+        table_anns.append(
+            {
                 "id": ann.id,
                 "name": ann.getFile().getName(),
                 "description": ann.getDescription(),
                 "size": ann.getFile().getSize(),
-                "created": ann.creationEventDate().strftime(
-                    "%Y-%m-%d %H:%M:%S.%Z"),
-                "bbf_url": get_bff_url(request, pq_url, "omero.parquet",
-                                       ext="parquet"),
-            })
-    for ann in obj.listAnnotations(ns=TABLE_NAMESPACE):
-        table_pq_url = reverse("omero_biofilefinder_table_to_parquet",
-                               kwargs={"ann_id": ann.id})
-        table_anns.append({
-            "id": ann.id,
-            "name": ann.getFile().getName(),
-            "description": ann.getDescription(),
-            "size": ann.getFile().getSize(),
-            "created": ann.creationEventDate().strftime(
-                "%Y-%m-%d %H:%M:%S.%Z"),
-            "bff_url": get_bff_url(request, table_pq_url,
-                                   "omero_table.parquet", ext="parquet"),
-        })
+                "created": ann.creationEventDate().strftime("%Y-%m-%d %H:%M:%S.%Z"),
+                "bff_url": get_bff_url(
+                    request, table_pq_url, "omero_table.parquet", ext="parquet"
+                ),
+            }
+        )
 
     context = {
         "bff_url": bff_url,
-        "target": {"dtype": obj_type, "id": obj_id,
-                   "name": obj.getName()},
+        "target": {"dtype": obj_type, "id": obj_id, "name": obj.getName()},
         "bff_parquet_anns": bff_parquet_anns,
         "table_anns": table_anns,
     }
@@ -211,8 +211,9 @@ def omero_to_csv(request, obj_type, obj_id, conn=None, **kwargs):
                 parent_names_by_iid[image.id] = well.getWellPos()
 
     # We use page=-1 to avoid pagination (default is 500)
-    anns, experimenters = marshal_annotations(conn, image_ids=image_ids,
-                                              ann_type="map", page=-1)
+    anns, experimenters = marshal_annotations(
+        conn, image_ids=image_ids, ann_type="map", page=-1
+    )
 
     # Get all the Keys...
     keys = set()
@@ -241,25 +242,24 @@ def omero_to_csv(request, obj_type, obj_id, conn=None, **kwargs):
         writer.writerow(column_names)
         for image_id in image_ids:
             values = kvp.get(image_id, {})
-            thumb_url = reverse("webgateway_render_thumbnail",
-                                kwargs={"iid": image_id})
+            thumb_url = reverse("webgateway_render_thumbnail", kwargs={"iid": image_id})
             thumb_url = request.build_absolute_uri(thumb_url)
             image = conn.getObject("Image", image_id)
             image_url = request.build_absolute_uri(reverse("webindex"))
             # we end url with .png so that BFF enables open-with "Browser"
             image_url += f"?show=image-{image_id}&_=.png"
-            row = [image_url,
-                   image.getName() if image else "Not Found",
-                   parent_names_by_iid.get(image_id, "Not Found"),
-                   thumb_url]
+            row = [
+                image_url,
+                image.getName() if image else "Not Found",
+                parent_names_by_iid.get(image_id, "Not Found"),
+                thumb_url,
+            ]
             for key in keys:
                 row.append(",".join(values.get(key, [])))
-            row.append(image.creationEventDate().strftime(
-                "%Y-%m-%d %H:%M:%S.%Z"))
+            row.append(image.creationEventDate().strftime("%Y-%m-%d %H:%M:%S.%Z"))
             writer.writerow(row)
 
-        response = HttpResponse(csvfile.getvalue(),
-                                content_type="text/csv")
+        response = HttpResponse(csvfile.getvalue(), content_type="text/csv")
         return response
 
 
@@ -269,7 +269,7 @@ def table_to_parquet(request, ann_id, conn=None, **kwargs):
     Convert an OMERO.table to a parquet file on the fly.
     """
     # If BFF is trying to load a 0 byte file, we return an empty response
-    if request.headers.get('Range') == 'bytes=0-0':
+    if request.headers.get("Range") == "bytes=0-0":
         return HttpResponse("", status=200)
 
     ann = conn.getObject("Annotation", ann_id)
@@ -290,18 +290,19 @@ def table_to_parquet(request, ann_id, conn=None, **kwargs):
     pyarrow_tables = []
 
     while row_count is None or offset < row_count:
-        table_data = perform_table_query(conn, fileid, query, col_names,
-                                         offset=offset, limit=limit)
+        table_data = perform_table_query(
+            conn, fileid, query, col_names, offset=offset, limit=limit
+        )
 
         if offset == 0:
             row_count = table_data["meta"]["totalCount"]
             columns = table_data["data"]["columns"]
             image_col = -1
-            image_col = (columns.index("Image") if "Image" in columns
-                         else columns.index("image"))
+            image_col = (
+                columns.index("Image") if "Image" in columns else columns.index("image")
+            )
             if image_col == -1:
-                return HttpResponse("No Image or image column in table",
-                                    status=400)
+                return HttpResponse("No Image or image column in table", status=400)
             # Add a column for file paths and thumbnails
             column_names = ["File Path"] + columns + ["Thumbnail"]
 
@@ -320,16 +321,16 @@ def table_to_parquet(request, ann_id, conn=None, **kwargs):
 
         offset += limit
 
-    combined_table = pa.concat_tables(pyarrow_tables,
-                                      promote_options="default")
+    combined_table = pa.concat_tables(pyarrow_tables, promote_options="default")
     combined_table.combine_chunks()
 
     with io.BytesIO() as buffer:
         pq.write_table(combined_table, buffer)
         ct = "application/vnd.apache.parquet"
         response = HttpResponse(buffer.getvalue(), content_type=ct)
-        response['Content-Disposition'] = \
+        response["Content-Disposition"] = (
             f'attachment; filename="omero_table_{fileid}.parquet"'
+        )
         return response
 
 
@@ -352,16 +353,15 @@ def app(request, url, **kwargs):
         if url.endswith(".js") and url.startswith("app."):
             # e.g. "/omero_biofilefinder/bff"
             basename = reverse("omero_biofilefinder_index") + "bff"
-            content = content.replace('{basename:""}',
-                                      f'{{basename:"{basename}"}}')
+            content = content.replace('{basename:""}', f'{{basename:"{basename}"}}')
 
         response = HttpResponse(content)
-        if (url.endswith(".js")):
+        if url.endswith(".js"):
             response["Content-Type"] = "application/javascript"
-        elif (url.endswith(".css")):
+        elif url.endswith(".css"):
             response["Content-Type"] = "text/css"
-        elif (url.endswith(".png")):
+        elif url.endswith(".png"):
             response["Content-Type"] = "image/png"
-        elif (url.endswith(".html")):
+        elif url.endswith(".html"):
             response["Content-Type"] = "text/html"
     return response
