@@ -26,12 +26,18 @@ from collections import defaultdict
 from django.urls import reverse
 
 from omeroweb.decorators import login_required
+from omeroweb.webgateway.views import perform_table_query
 
 from . import biofilefinder_settings as settings
 
 from omeroweb.webclient.tree import marshal_annotations
 
+# TODO: try/except for pyarrow import
+import pyarrow as pa
+import pyarrow.parquet as pq
+
 BFF_NAMESPACE = "omero_biofilefinder.parquet"
+TABLE_NAMESPACE = "openmicroscopy.org/omero/bulk_annotations"
 
 
 @login_required()
@@ -108,6 +114,7 @@ def open_with_bff(request, conn=None, **kwargs):
     # use that instead of the csv file.
     project = conn.getObject("Project", int(project_id))
     bff_parquet_anns = []
+    table_anns = []
     if project is not None:
         for ann in project.listAnnotations(ns=BFF_NAMESPACE):
             if ann.getFile() is not None:
@@ -123,12 +130,27 @@ def open_with_bff(request, conn=None, **kwargs):
                     "bbf_url": get_bff_url(request, pq_url, "omero.parquet",
                                            ext="parquet"),
                 })
+        for ann in project.listAnnotations(ns=TABLE_NAMESPACE):
+            table_pq_url = reverse("omero_biofilefinder_table_to_parquet",
+                                   kwargs={"annId": ann.id})
+            table_anns.append({
+                "id": ann.id,
+                "name": ann.getFile().getName(),
+                "description": ann.getDescription(),
+                "size": ann.getFile().getSize(),
+                "created": ann.creationEventDate().strftime(
+                    "%Y-%m-%d %H:%M:%S.%Z"),
+                "bff_url": get_bff_url(request, table_pq_url,
+                                       "omero_table.parquet", ext="parquet"),
+            })
+        
 
     context = {
         "bff_url": bff_url,
         "target": {"dtype": "project", "id": project_id,
                    "name": project.getName()},
         "bff_parquet_anns": bff_parquet_anns,
+        "table_anns": table_anns,
     }
 
     return render(request, "omero_biofilefinder/open_with_bff.html", context)
@@ -196,12 +218,70 @@ def omero_to_csv(request, id, conn=None, **kwargs):
         response = HttpResponse(csvfile.getvalue(), content_type="text/csv")
         return response
 
+@login_required()
+def table_to_parquet(request, annId, conn=None, **kwargs):
+    """
+    Convert an OMERO.table to a parquet file on the fly.
+    """
+    # If BFF is trying to load a 0 byte file, we return an empty response
+    if request.headers.get('Range') == 'bytes=0-0':
+        return HttpResponse("", status=200)
+
+    ann = conn.getObject("Annotation", annId)
+    if ann is None:
+        return HttpResponse("Annotation not found", status=404)
+    fileid = ann.getFile().id if ann.getFile() else None
+    if fileid is None:
+        return HttpResponse("Annotation does not have a file", status=400)
+
+    query = request.GET.get("query", "*")
+    col_names = request.GET.getlist("col_names")
+    base_url = reverse("index")
+
+    limit = 10000
+    offset = 0
+    row_count = None
+
+    pyarrow_tables = []
+
+    while row_count is None or offset < row_count:
+        table_data = perform_table_query(conn, fileid, query, col_names, offset=offset, limit=limit)
+
+        if offset == 0:
+            row_count = table_data["meta"]["totalCount"]
+            columns = table_data["data"]["columns"]
+            image_col = -1
+            image_col = columns.index("Image") if "Image" in columns else columns.index("image")
+            if image_col == -1:
+                return HttpResponse("No Image or image column in table", status=400)
+            # Add a column for file paths and thumbnails
+            column_names = ["File Path"] + columns + ["Thumbnail"]
+
+        rows_batch = table_data["data"]["rows"]
+        file_paths = [f"{base_url}webclient/?show=image-{row[image_col]}&_=.png" for row in rows_batch]
+        column_data = [file_paths]
+        for col in range(len(columns)):
+            col_data = [row[col] for row in rows_batch]
+            column_data.append(col_data)
+        thumbnail_urls = [f"{base_url}webgateway/render_thumbnail/{row[image_col]}/" for row in rows_batch]
+        column_data.append(thumbnail_urls)
+        pyarrow_tables.append(pa.table(column_data, names=column_names))
+
+        offset += limit
+
+    combined_table = pa.concat_tables(pyarrow_tables, promote_options="default")
+    combined_table.combine_chunks()
+
+    with io.BytesIO() as buffer:
+        pq.write_table(combined_table, buffer)
+        response = HttpResponse(buffer.getvalue(), content_type="application/vnd.apache.parquet")
+        response['Content-Disposition'] = f'attachment; filename="omero_table_{fileid}.parquet"'
+        return response
 
 def app(request, url, **kwargs):
 
     from django.contrib.staticfiles.storage import staticfiles_storage
 
-    print("app called with url:", url)
     if len(url) == 0:
         url = "index.html"
 

@@ -64,6 +64,22 @@
             </p>
         {% endif %}
 
+        {% if table_anns %}
+            <h3>OMERO.tables:</h3>
+            <ul>
+            {% for ann in table_anns %}
+                <li>
+                    {{ ann.name }} (Created: {{ ann.created }} Size: {{ ann.size }} bytes)
+                    <a class="button_link" href="{{ ann.bff_url }}">Open table in Biofile Finder</a>
+                </li>
+            {% endfor %}
+            </ul>
+        {% else %}
+            <p>
+                No OMERO.table files currently attached to {{ target.dtype | capfirst }}:{{ target.id }}.
+            </p>
+        {% endif %}
+
         <p>
             To export Key-Value pairs to a parquet file, you can run an OMERO script:
             Select the Project in the webclient, then use the OMERO.script menu and choose:

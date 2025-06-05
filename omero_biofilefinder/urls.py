@@ -22,18 +22,21 @@ from . import views
 from omeroweb.webclient.views import download_annotation
 
 urlpatterns = [
-    # index 'home page' of the app
-    path("", views.index, name="omero_biofilefinder_index"),
+     # index 'home page' of the app
+     path("", views.index, name="omero_biofilefinder_index"),
 
-    path("open_with_bff", views.open_with_bff,
+     path("open_with_bff", views.open_with_bff,
          name="omero_biofilefinder_openwith"),
 
-    # when BFF loads a parquet file, the url needs to end with .parquet
-    path("fileann/<int:annId>/omero.parquet", download_annotation,
+     # when BFF loads a parquet file, the url needs to end with .parquet
+     path("fileann/<int:annId>/omero.parquet", download_annotation,
          name="omero_biofilefinder_fileann"),
+     
+     path("table/<int:annId>/omero.parquet", views.table_to_parquet,
+         name="omero_biofilefinder_table_to_parquet"),
 
-    path("project/<int:id>/csv/", views.omero_to_csv,
+     path("project/<int:id>/csv/", views.omero_to_csv,
          name="omero_biofilefinder_csv"),
 
-    re_path(r'^bff/app/(?P<url>.*)$', views.app, name='bff_static'),
+     re_path(r'^bff/app/(?P<url>.*)$', views.app, name='bff_static'),
 ]
