@@ -29,13 +29,13 @@ urlpatterns = [
          name="omero_biofilefinder_openwith"),
 
     # when BFF loads a parquet file, the url needs to end with .parquet
-    path("fileann/<int:annId>/omero.parquet", download_annotation,
+    path("fileann/<int:ann_id>/omero.parquet", download_annotation,
          name="omero_biofilefinder_fileann"),
 
-    path("table/<int:annId>/omero.parquet", views.table_to_parquet,
+    path("table/<int:ann_id>/omero.parquet", views.table_to_parquet,
          name="omero_biofilefinder_table_to_parquet"),
 
-    re_path(r'^(?P<obj_type>(project|dataset|screen))/(?P<obj_id>[0-9]+)$',
+    re_path(r'^(?P<obj_type>(project|dataset|plate))/(?P<obj_id>[0-9]+)$',
             views.omero_to_csv, name="omero_biofilefinder_csv"),
 
     re_path(r'^bff/app/(?P<url>.*)$', views.app, name='bff_static'),

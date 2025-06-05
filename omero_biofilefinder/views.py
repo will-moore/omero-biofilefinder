@@ -96,7 +96,6 @@ def open_with_bff(request, conn=None, **kwargs):
     # We want to pick some columns to show in the BFF app
     # Need to know a few Keys from Key-Value pairs....
     # Let's just check first 5 images...
-    
     image_ids = []
     obj = conn.getObject(obj_type, obj_id)
     if obj is None:
@@ -119,7 +118,7 @@ def open_with_bff(request, conn=None, **kwargs):
             image = well.getImage(0)
             image_ids.append(image.id)
             if len(image_ids) > 5:
-                    break
+                break
 
     if len(image_ids) == 0:
         return HttpResponse(f"No images found in {obj_type}:{obj_id}")
@@ -144,11 +143,10 @@ def open_with_bff(request, conn=None, **kwargs):
     # use that instead of the csv file.
     bff_parquet_anns = []
     table_anns = []
-    
     for ann in obj.listAnnotations(ns=BFF_NAMESPACE):
         if ann.getFile() is not None:
             pq_url = reverse("omero_biofilefinder_fileann",
-                                kwargs={"annId": ann.id})
+                             kwargs={"ann_id": ann.id})
             bff_parquet_anns.append({
                 "id": ann.id,
                 "name": ann.getFile().getName(),
@@ -157,11 +155,11 @@ def open_with_bff(request, conn=None, **kwargs):
                 "created": ann.creationEventDate().strftime(
                     "%Y-%m-%d %H:%M:%S.%Z"),
                 "bbf_url": get_bff_url(request, pq_url, "omero.parquet",
-                                        ext="parquet"),
+                                       ext="parquet"),
             })
     for ann in obj.listAnnotations(ns=TABLE_NAMESPACE):
         table_pq_url = reverse("omero_biofilefinder_table_to_parquet",
-                                kwargs={"annId": ann.id})
+                               kwargs={"ann_id": ann.id})
         table_anns.append({
             "id": ann.id,
             "name": ann.getFile().getName(),
@@ -170,7 +168,7 @@ def open_with_bff(request, conn=None, **kwargs):
             "created": ann.creationEventDate().strftime(
                 "%Y-%m-%d %H:%M:%S.%Z"),
             "bff_url": get_bff_url(request, table_pq_url,
-                                    "omero_table.parquet", ext="parquet"),
+                                   "omero_table.parquet", ext="parquet"),
         })
 
     context = {
@@ -264,8 +262,9 @@ def omero_to_csv(request, obj_type, obj_id, conn=None, **kwargs):
                                 content_type="text/csv")
         return response
 
+
 @login_required()
-def table_to_parquet(request, annId, conn=None, **kwargs):
+def table_to_parquet(request, ann_id, conn=None, **kwargs):
     """
     Convert an OMERO.table to a parquet file on the fly.
     """
@@ -273,7 +272,7 @@ def table_to_parquet(request, annId, conn=None, **kwargs):
     if request.headers.get('Range') == 'bytes=0-0':
         return HttpResponse("", status=200)
 
-    ann = conn.getObject("Annotation", annId)
+    ann = conn.getObject("Annotation", ann_id)
     if ann is None:
         return HttpResponse("Annotation not found", status=404)
     fileid = ann.getFile().id if ann.getFile() else None
@@ -328,13 +327,13 @@ def table_to_parquet(request, annId, conn=None, **kwargs):
     with io.BytesIO() as buffer:
         pq.write_table(combined_table, buffer)
         ct = "application/vnd.apache.parquet"
-        response = HttpResponse(buffer.getvalue(),content_type=ct)
+        response = HttpResponse(buffer.getvalue(), content_type=ct)
         response['Content-Disposition'] = \
             f'attachment; filename="omero_table_{fileid}.parquet"'
         return response
 
-def app(request, url, **kwargs):
 
+def app(request, url, **kwargs):
     from django.contrib.staticfiles.storage import staticfiles_storage
 
     if len(url) == 0:
