@@ -21,7 +21,7 @@ import io
 import urllib
 import json
 from django.shortcuts import render
-from django.http import HttpResponse
+from django.http import HttpResponse, Http404
 from collections import defaultdict
 from django.urls import reverse
 
@@ -78,22 +78,52 @@ def open_with_bff(request, conn=None, **kwargs):
     we can use that instead of the csv file.
     """
 
-    project_id = request.GET.get("project")
-    csv_url = reverse("omero_biofilefinder_csv", kwargs={"id": project_id})
+    for obj_type in ["project", "plate", "dataset"]:
+        obj_id = request.GET.get(obj_type)
+        if obj_id is not None:
+            break
+
+    if obj_id is None:
+        raise Http404("Use ?project=1 or ?screen=1")
+    else:
+        obj_id = int(obj_id)
+
+    csv_url = reverse("omero_biofilefinder_csv",
+                      kwargs={"obj_id": obj_id,
+                              "obj_type": obj_type})
     bff_url = get_bff_url(request, csv_url, "omero.csv", ext="csv")
 
     # We want to pick some columns to show in the BFF app
     # Need to know a few Keys from Key-Value pairs....
     # Let's just check first 5 images...
-    datasets = conn.getObjects("Dataset", opts={"project": int(project_id)})
+    
     image_ids = []
-    for dataset in datasets:
-        for image in dataset.listChildren():
-            image_ids.append(image.id)
+    obj = conn.getObject(obj_type, obj_id)
+    if obj is None:
+        raise Http404("{obj_type}:{obj_id} Not Found")
+
+    if obj_type == "project" or obj_type == "dataset":
+        if obj_type == "project":
+            datasets = list(obj.listChildren())
+        else:
+            datasets = [obj]
+        for dataset in datasets:
+            for image in dataset.listChildren():
+                image_ids.append(image.id)
+                if len(image_ids) > 5:
+                    break
             if len(image_ids) > 5:
                 break
-        if len(image_ids) > 5:
-            break
+    elif obj_type == "plate":
+        for well in obj.listChildren():
+            image = well.getImage(0)
+            image_ids.append(image.id)
+            if len(image_ids) > 5:
+                    break
+
+    if len(image_ids) == 0:
+        return HttpResponse(f"No images found in {obj_type}:{obj_id}")
+
     # Get KVP keys for 5 images...
     anns, experimenters = marshal_annotations(conn, image_ids=image_ids,
                                               ann_type="map")
@@ -112,43 +142,41 @@ def open_with_bff(request, conn=None, **kwargs):
 
     # If there is a parquet file already attached to the project, we can
     # use that instead of the csv file.
-    project = conn.getObject("Project", int(project_id))
     bff_parquet_anns = []
     table_anns = []
-    if project is not None:
-        for ann in project.listAnnotations(ns=BFF_NAMESPACE):
-            if ann.getFile() is not None:
-                pq_url = reverse("omero_biofilefinder_fileann",
-                                 kwargs={"annId": ann.id})
-                bff_parquet_anns.append({
-                    "id": ann.id,
-                    "name": ann.getFile().getName(),
-                    "description": ann.getDescription(),
-                    "size": ann.getFile().getSize(),
-                    "created": ann.creationEventDate().strftime(
-                        "%Y-%m-%d %H:%M:%S.%Z"),
-                    "bbf_url": get_bff_url(request, pq_url, "omero.parquet",
-                                           ext="parquet"),
-                })
-        for ann in project.listAnnotations(ns=TABLE_NAMESPACE):
-            table_pq_url = reverse("omero_biofilefinder_table_to_parquet",
-                                   kwargs={"annId": ann.id})
-            table_anns.append({
+    
+    for ann in obj.listAnnotations(ns=BFF_NAMESPACE):
+        if ann.getFile() is not None:
+            pq_url = reverse("omero_biofilefinder_fileann",
+                                kwargs={"annId": ann.id})
+            bff_parquet_anns.append({
                 "id": ann.id,
                 "name": ann.getFile().getName(),
                 "description": ann.getDescription(),
                 "size": ann.getFile().getSize(),
                 "created": ann.creationEventDate().strftime(
                     "%Y-%m-%d %H:%M:%S.%Z"),
-                "bff_url": get_bff_url(request, table_pq_url,
-                                       "omero_table.parquet", ext="parquet"),
+                "bbf_url": get_bff_url(request, pq_url, "omero.parquet",
+                                        ext="parquet"),
             })
-        
+    for ann in obj.listAnnotations(ns=TABLE_NAMESPACE):
+        table_pq_url = reverse("omero_biofilefinder_table_to_parquet",
+                                kwargs={"annId": ann.id})
+        table_anns.append({
+            "id": ann.id,
+            "name": ann.getFile().getName(),
+            "description": ann.getDescription(),
+            "size": ann.getFile().getSize(),
+            "created": ann.creationEventDate().strftime(
+                "%Y-%m-%d %H:%M:%S.%Z"),
+            "bff_url": get_bff_url(request, table_pq_url,
+                                    "omero_table.parquet", ext="parquet"),
+        })
 
     context = {
         "bff_url": bff_url,
-        "target": {"dtype": "project", "id": project_id,
-                   "name": project.getName()},
+        "target": {"dtype": obj_type, "id": obj_id,
+                   "name": obj.getName()},
         "bff_parquet_anns": bff_parquet_anns,
         "table_anns": table_anns,
     }
@@ -157,15 +185,32 @@ def open_with_bff(request, conn=None, **kwargs):
 
 
 @login_required()
-def omero_to_csv(request, id, conn=None, **kwargs):
+def omero_to_csv(request, obj_type, obj_id, conn=None, **kwargs):
 
-    datasets = conn.getObjects("Dataset", opts={"project": id})
+    obj = conn.getObject(obj_type, obj_id)
+    if obj is None:
+        raise Http404("{obj_type}:{obj_id} Not Found")
+
     image_ids = []
-    ds_names_by_iid = {}
-    for dataset in datasets:
-        for image in dataset.listChildren():
-            image_ids.append(image.id)
-            ds_names_by_iid[image.id] = dataset.getName()
+    parent_names_by_iid = {}
+    parent_colname = "Dataset"
+
+    if obj_type == "project" or obj_type == "dataset":
+        if obj_type == "project":
+            datasets = list(obj.listChildren())
+        else:
+            datasets = [obj]
+        for dataset in datasets:
+            for image in dataset.listChildren():
+                image_ids.append(image.id)
+                parent_names_by_iid[image.id] = dataset.getName()
+    elif obj_type == "plate":
+        parent_colname = "Well"
+        for well in obj.listChildren():
+            for ws in well.listChildren():
+                image = ws.getImage()
+                image_ids.append(image.id)
+                parent_names_by_iid[image.id] = well.getWellPos()
 
     # We use page=-1 to avoid pagination (default is 500)
     anns, experimenters = marshal_annotations(conn, image_ids=image_ids,
@@ -188,7 +233,7 @@ def omero_to_csv(request, id, conn=None, **kwargs):
             value = key_val[1]
             kvp[image_id][key].append(value)
 
-    column_names = ["File Path", "File Name", "Dataset", "Thumbnail"]
+    column_names = ["File Path", "File Name", parent_colname, "Thumbnail"]
     column_names.extend(list(keys))
     column_names.append("Uploaded")
 
@@ -207,7 +252,7 @@ def omero_to_csv(request, id, conn=None, **kwargs):
             image_url += f"?show=image-{image_id}&_=.png"
             row = [image_url,
                    image.getName() if image else "Not Found",
-                   ds_names_by_iid.get(image_id, "Not Found"),
+                   parent_names_by_iid.get(image_id, "Not Found"),
                    thumb_url]
             for key in keys:
                 row.append(",".join(values.get(key, [])))
@@ -215,7 +260,8 @@ def omero_to_csv(request, id, conn=None, **kwargs):
                 "%Y-%m-%d %H:%M:%S.%Z"))
             writer.writerow(row)
 
-        response = HttpResponse(csvfile.getvalue(), content_type="text/csv")
+        response = HttpResponse(csvfile.getvalue(),
+                                content_type="text/csv")
         return response
 
 @login_required()
@@ -245,37 +291,46 @@ def table_to_parquet(request, annId, conn=None, **kwargs):
     pyarrow_tables = []
 
     while row_count is None or offset < row_count:
-        table_data = perform_table_query(conn, fileid, query, col_names, offset=offset, limit=limit)
+        table_data = perform_table_query(conn, fileid, query, col_names,
+                                         offset=offset, limit=limit)
 
         if offset == 0:
             row_count = table_data["meta"]["totalCount"]
             columns = table_data["data"]["columns"]
             image_col = -1
-            image_col = columns.index("Image") if "Image" in columns else columns.index("image")
+            image_col = (columns.index("Image") if "Image" in columns
+                         else columns.index("image"))
             if image_col == -1:
-                return HttpResponse("No Image or image column in table", status=400)
+                return HttpResponse("No Image or image column in table",
+                                    status=400)
             # Add a column for file paths and thumbnails
             column_names = ["File Path"] + columns + ["Thumbnail"]
 
-        rows_batch = table_data["data"]["rows"]
-        file_paths = [f"{base_url}webclient/?show=image-{row[image_col]}&_=.png" for row in rows_batch]
+        rows = table_data["data"]["rows"]
+        # we end URL with .png so that BFF enables open-with "Browser"
+        web_url = f"{base_url}webclient/?show=image-"
+        thumb_url = f"{base_url}webgateway/render_thumbnail/"
+        file_paths = [f"{web_url}{row[image_col]}&_=.png" for row in rows]
         column_data = [file_paths]
         for col in range(len(columns)):
-            col_data = [row[col] for row in rows_batch]
+            col_data = [row[col] for row in rows]
             column_data.append(col_data)
-        thumbnail_urls = [f"{base_url}webgateway/render_thumbnail/{row[image_col]}/" for row in rows_batch]
+        thumbnail_urls = [f"{thumb_url}{row[image_col]}/" for row in rows]
         column_data.append(thumbnail_urls)
         pyarrow_tables.append(pa.table(column_data, names=column_names))
 
         offset += limit
 
-    combined_table = pa.concat_tables(pyarrow_tables, promote_options="default")
+    combined_table = pa.concat_tables(pyarrow_tables,
+                                      promote_options="default")
     combined_table.combine_chunks()
 
     with io.BytesIO() as buffer:
         pq.write_table(combined_table, buffer)
-        response = HttpResponse(buffer.getvalue(), content_type="application/vnd.apache.parquet")
-        response['Content-Disposition'] = f'attachment; filename="omero_table_{fileid}.parquet"'
+        ct = "application/vnd.apache.parquet"
+        response = HttpResponse(buffer.getvalue(),content_type=ct)
+        response['Content-Disposition'] = \
+            f'attachment; filename="omero_table_{fileid}.parquet"'
         return response
 
 def app(request, url, **kwargs):
