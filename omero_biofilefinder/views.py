@@ -281,7 +281,14 @@ def table_to_parquet(request, ann_id, conn=None, **kwargs):
 
     query = request.GET.get("query", "*")
     col_names = request.GET.getlist("col_names")
+
+    # NB: we don't need absolute URLs here, as the BFF app is hosted
+    # by omero-web. If we want to use BFF outside of omero-web,
+    # we would need to change the URLs to absolute URLs.
     base_url = reverse("index")
+    # we end URL with .png so that BFF enables open-with "Browser"
+    web_url = f"{base_url}webclient/?show=image-"
+    thumb_url = f"{base_url}webgateway/render_thumbnail/"
 
     limit = 10000
     offset = 0
@@ -307,9 +314,6 @@ def table_to_parquet(request, ann_id, conn=None, **kwargs):
             column_names = ["File Path"] + columns + ["Thumbnail"]
 
         rows = table_data["data"]["rows"]
-        # we end URL with .png so that BFF enables open-with "Browser"
-        web_url = f"{base_url}webclient/?show=image-"
-        thumb_url = f"{base_url}webgateway/render_thumbnail/"
         file_paths = [f"{web_url}{row[image_col]}&_=.png" for row in rows]
         column_data = [file_paths]
         for col in range(len(columns)):

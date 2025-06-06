@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright (c) 2024 University of Dundee.
+# Copyright (c) 2025 University of Dundee.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -15,5 +15,12 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+# Version: 1.0
+#
 
-default_app_config = "omero_biofilefinder.apps.BffAppConfig"
+from django.apps import AppConfig
+
+
+class BffAppConfig(AppConfig):
+    name = "omero_biofilefinder"
+    label = "biofilefinder"
