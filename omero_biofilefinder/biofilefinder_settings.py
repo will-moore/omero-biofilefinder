@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 # Copyright (C) 2025 University of Dundee & Open Microscopy Environment.
 # All rights reserved.
@@ -20,19 +19,21 @@
 """Settings for the OMERO.biofilefinder app."""
 
 import sys
+
 from omeroweb.settings import process_custom_settings, report_settings
 
 # load settings
 BIOFILEFINDER_SETTINGS_MAPPING = {
-
-    "omero.web.bff.force_https":
-        ["FORCE_HTTPS",
-         False,
-         bool,
-         ("Enforce https for absolute URLs. Only needed if Django does not "
-          "know it is running under https.")],
+    "omero.web.bff.force_https": [
+        "FORCE_HTTPS",
+        False,
+        bool,
+        (
+            "Enforce https for absolute URLs. Only needed if Django does not "
+            "know it is running under https."
+        ),
+    ],
 }
 
-process_custom_settings(sys.modules[__name__],
-                        'BIOFILEFINDER_SETTINGS_MAPPING')
+process_custom_settings(sys.modules[__name__], "BIOFILEFINDER_SETTINGS_MAPPING")
 report_settings(sys.modules[__name__])

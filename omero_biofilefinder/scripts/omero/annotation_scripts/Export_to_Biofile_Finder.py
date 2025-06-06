@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 # -----------------------------------------------------------------------------
 #   Copyright (C) 2025 University of Dundee. All rights reserved.
@@ -26,21 +25,20 @@ zip file for download.
 """
 
 import argparse
-from omero import ClientError
-import omero.scripts as scripts
-from omero.gateway import BlitzGateway
-import omero.util.script_utils as script_utils
-import omero
-from omero.rtypes import rstring, rlong, robject
 import csv
 import os
-
-from pyarrow import csv as pa_csv
-import pyarrow as pa
-import pyarrow.parquet as pq
-
 from collections import defaultdict
 from datetime import datetime
+
+import omero
+import omero.scripts as scripts
+import omero.util.script_utils as script_utils
+import pyarrow as pa
+import pyarrow.parquet as pq
+from omero import ClientError
+from omero.gateway import BlitzGateway
+from omero.rtypes import rlong, robject, rstring
+from pyarrow import csv as pa_csv
 
 BFF_NAMESPACE = "omero_biofilefinder.parquet"
 
@@ -55,7 +53,7 @@ def marshal_annotations(
     run_ids=None,
     well_ids=None,
     ann_type=None,
-    ns=None
+    ns=None,
 ):
     annotations = []
     qs = conn.getQueryService()
@@ -92,16 +90,16 @@ def marshal_annotations(
         params = omero.sys.ParametersI()
         params.addIds(ids)
         q = """
-            select oal from %sAnnotationLink as oal
+            select oal from {}AnnotationLink as oal
             join fetch oal.details.creationEvent
             join fetch oal.details.owner
             left outer join fetch oal.child as ch
             left outer join fetch oal.parent as pa
             join fetch ch.details.creationEvent
-            join fetch ch.details.owner %s
+            join fetch ch.details.owner {}
             left outer join fetch ch.file as file
-            where %s order by ch.ns
-            """ % (
+            where {} order by ch.ns
+            """.format(
             dtype,
             "join fetch pa.plate" if dtype == "Well" else "",
             " and ".join(where_clause),
@@ -136,7 +134,7 @@ def process_dataset_to_csv(conn, dataset, base_url):
         images_by_id[image.id] = {
             "dataset_name": dataset.getName(),
             "name": image.getName(),
-            "date": image.creationEventDate().strftime("%Y-%m-%d %H:%M:%S.%Z")
+            "date": image.creationEventDate().strftime("%Y-%m-%d %H:%M:%S.%Z"),
         }
 
     # Collect all the Keys...
@@ -148,7 +146,7 @@ def process_dataset_to_csv(conn, dataset, base_url):
     batch_size = 100
     for i in range(0, len(image_ids), batch_size):
         print(f"Processing {i} to {i + batch_size}")
-        batch_ids = image_ids[i:i + batch_size]
+        batch_ids = image_ids[i : i + batch_size]
         anns = marshal_annotations(conn, image_ids=batch_ids, ann_type="map")
         for ann in anns:
             image_id = ann["link"]["parent"]["id"]
@@ -175,14 +173,15 @@ def process_dataset_to_csv(conn, dataset, base_url):
             # we end url with .png so that BFF enables open-with "Browser"
             image_url = f"{base_url}webclient/?show=image-{image_id}&_=.png"
             img_info = images_by_id.get(image_id)
-            row = [image_url,
-                   img_info.get("name") if img_info else "Not Found",
-                   img_info.get("dataset_name") if img_info else "Not Found",
-                   thumb_url]
+            row = [
+                image_url,
+                img_info.get("name") if img_info else "Not Found",
+                img_info.get("dataset_name") if img_info else "Not Found",
+                thumb_url,
+            ]
             for key in keys:
                 row.append(",".join(values.get(key, [])))
-            row.append(image.creationEventDate().strftime(
-                "%Y-%m-%d %H:%M:%S.%Z"))
+            row.append(image.creationEventDate().strftime("%Y-%m-%d %H:%M:%S.%Z"))
             writer.writerow(row)
 
     return export_file
@@ -202,8 +201,8 @@ def export_to_bff(conn, script_params):
         parent = conn.getObject("Project", script_params["IDs"][0])
         group_id = parent.getDetails().group.id.val
         conn.SERVICE_OPTS.setOmeroGroup(group_id)
-        for id in script_params["IDs"]:
-            datasets = list(conn.getObjects("Dataset", opts={"project": id}))
+        for obj_id in script_params["IDs"]:
+            datasets = list(conn.getObjects("Dataset", opts={"project": obj_id}))
             datasets.sort(key=lambda x: x.id)
             datasets = datasets[:max_datasets]
             for dataset in datasets:
@@ -213,8 +212,8 @@ def export_to_bff(conn, script_params):
         parent = conn.getObject("Dataset", script_params["IDs"][0])
         group_id = parent.getDetails().group.id.val
         conn.SERVICE_OPTS.setOmeroGroup(group_id)
-        for id in script_params["IDs"]:
-            dataset = conn.getObject("Dataset", id)
+        for obj_id in script_params["IDs"]:
+            dataset = conn.getObject("Dataset", obj_id)
             csv_name = process_dataset_to_csv(conn, dataset, base_url)
             csv_names.append(csv_name)
 
@@ -223,7 +222,7 @@ def export_to_bff(conn, script_params):
     combined_table = pa.concat_tables(data_tables, promote_options="default")
     combined_table.combine_chunks()
 
-    print('combined_table', combined_table)
+    print("combined_table", combined_table)
     # Write the combined table back to a Parquet file
     oids = "_".join([str(i) for i in script_params["IDs"]])
     export_file = f"{script_params['Data_Type']}_{oids}_bff.parquet"
@@ -234,8 +233,12 @@ def export_to_bff(conn, script_params):
         return None, msg
 
     file_annotation, message = script_utils.create_link_file_annotation(
-        conn, export_file, parent,
-        namespace=BFF_NAMESPACE, mimetype="application/vnd.apache.parquet",)
+        conn,
+        export_file,
+        parent,
+        namespace=BFF_NAMESPACE,
+        mimetype="application/vnd.apache.parquet",
+    )
     return file_annotation, message
 
 
@@ -245,27 +248,34 @@ def run_script():
     scripting service, passing the required parameters.
     """
 
-    data_types = [rstring('Project'), rstring('Dataset')]
+    data_types = [rstring("Project"), rstring("Dataset")]
 
     client = scripts.client(
-        'Export_to_Biofile_Finder.py',
+        "Export_to_Biofile_Finder.py",
         """Export image Key-Value pairs to parquet file for Biofile Finder""",
-
         scripts.String(
-            "Data_Type", optional=False, grouping="1",
-            description="The data you want to work with.", values=data_types,
-            default="Project"),
-
+            "Data_Type",
+            optional=False,
+            grouping="1",
+            description="The data you want to work with.",
+            values=data_types,
+            default="Project",
+        ),
         scripts.List(
-            "IDs", optional=False, grouping="2",
-            description="List of Dataset IDs or Image IDs").ofType(rlong(0)),
-
+            "IDs",
+            optional=False,
+            grouping="2",
+            description="List of Dataset IDs or Image IDs",
+        ).ofType(rlong(0)),
         scripts.String(
-            "Base_URL", optional=True, grouping="3",
-            description=("The full or relative URL to OMERO.web"
-                         " e.g. https://server.com/ or /"),
-            default="/"),
-
+            "Base_URL",
+            optional=True,
+            grouping="3",
+            description=(
+                "The full or relative URL to OMERO.web" " e.g. https://server.com/ or /"
+            ),
+            default="/",
+        ),
         authors=["William Moore", "OME Team"],
         institutions=["University of Dundee"],
     )
@@ -283,13 +293,12 @@ def run_script():
         file_annotation, message = export_to_bff(conn, script_params)
 
         stop_time = datetime.now()
-        print("Duration: %s" % str(stop_time-start_time))
+        print("Duration: %s" % str(stop_time - start_time))
 
         # return this fileAnnotation to the client.
         client.setOutput("Message", rstring(message))
         if file_annotation is not None:
-            client.setOutput("File_Annotation",
-                             robject(file_annotation._obj))
+            client.setOutput("File_Annotation", robject(file_annotation._obj))
 
     finally:
         client.closeSession()
@@ -302,16 +311,20 @@ if __name__ == "__main__":
         # This is a workaround for the fact that the script is not run in a
         # session, so we need to create one manually.
         from omero.cli import cli_login
+
         with cli_login() as cli:
 
             # use argparse to get the project id
             parser = argparse.ArgumentParser()
+            parser.add_argument("target", help="E.g 'Project:123' or 'Dataset:123'")
             parser.add_argument(
-                "target", help="E.g 'Project:123' or 'Dataset:123'")
-            parser.add_argument(
-                "--base-url", help=("The full or relative URL to OMERO.web"
-                                    " e.g. https://server.com/ or /"),
-                default="/")
+                "--base-url",
+                help=(
+                    "The full or relative URL to OMERO.web"
+                    " e.g. https://server.com/ or /"
+                ),
+                default="/",
+            )
             args = parser.parse_args()
             dtype, obj_id = args.target.split(":")
             obj_ids = [int(i) for i in obj_id.split(",")]
