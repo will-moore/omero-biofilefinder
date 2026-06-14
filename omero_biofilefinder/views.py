@@ -284,8 +284,7 @@ def omero_to_csv(request, obj_type, obj_id, conn=None, **kwargs):
             thumb_url = request.build_absolute_uri(thumb_url)
             image = conn.getObject("Image", image_id)
             image_url = request.build_absolute_uri(reverse("webindex"))
-            # we end url with .png so that BFF enables open-with "Browser"
-            image_url += f"?show=image-{image_id}&_=.png"
+            image_url += f"?show=image-{image_id}"
             row = [
                 image_url,
                 image.getName() if image else "Not Found",
@@ -324,7 +323,6 @@ def table_to_parquet(request, ann_id, conn=None, **kwargs):
     # by omero-web. If we want to use BFF outside of omero-web,
     # we would need to change the URLs to absolute URLs.
     base_url = reverse("index")
-    # we end URL with .png so that BFF enables open-with "Browser"
     web_url = f"{base_url}webclient/?show=image-"
     thumb_url = f"{base_url}webgateway/render_thumbnail/"
 
@@ -352,7 +350,7 @@ def table_to_parquet(request, ann_id, conn=None, **kwargs):
             column_names = ["File Path"] + columns + ["Thumbnail"]
 
         rows = table_data["data"]["rows"]
-        file_paths = [f"{web_url}{row[image_col]}&_=.png" for row in rows]
+        file_paths = [f"{web_url}{row[image_col]}" for row in rows]
         column_data = [file_paths]
         for col in range(len(columns)):
             col_data = [row[col] for row in rows]
