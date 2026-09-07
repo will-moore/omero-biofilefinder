@@ -35,7 +35,7 @@ context menu to `Open With > BioFile Finder`. This will open a page that lists t
    to format your CSV or OMERO.table:
 
 Table format
-============
+------------
 
 You can attach a CSV or OMERO.table to any `Project`, `Dataset`, `Image` or `Plate`. The OMERO IDs
 specified in the table do not have to correspond to that object.

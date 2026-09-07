@@ -214,47 +214,38 @@ def open_with_bff(request, conn=None, **kwargs):
     return render(request, "omero_biofilefinder/open_with_bff.html", context)
 
 
-def get_urls(table_row, image_col, roi_col, shape_col):
+def get_urls(obj_type, obj_id):
     """
     Given a row from a table, find the shape or ROI or image id and return the
     OMERO.web URL and thumbnail URL.
     """
-    row_type = None
-    row_id = None
-    webclient_url = reverse("webindex")
+    base_url = reverse("webindex")
     try:
-        omero_iviewer_index = reverse("omero_iviewer_index")
+        omero_iviewer_url = reverse("omero_iviewer_index")
     except NoReverseMatch:
         # iviewer not installed
-        omero_iviewer_index = None
-    for otype, idx in zip(["shape", "roi", "image"], [shape_col, roi_col, image_col]):
-        if idx is not None and table_row[idx]:
-            try:
-                row_id = int(table_row[idx])
-            except ValueError:
-                continue
-            row_type = otype
-            row_id = table_row[idx]
-            break
+        omero_iviewer_url = None
 
-    if row_type == "image":
-        web_url = webclient_url + f"img_detail/{row_id}/"
-        thumb_url = reverse("webgateway_render_thumbnail", kwargs={"iid": row_id})
-    elif row_type == "shape":
+    webclient_url = base_url + f"?show={obj_type}-{obj_id}/"
+    if obj_type == "image":
+        thumb_url = reverse("webgateway_render_thumbnail", kwargs={"iid": obj_id})
+        viewer_url = base_url + f"img_detail/{obj_id}/"
+    elif obj_type == "shape":
         thumb_url = reverse(
-            "webgateway_render_shape_thumbnail", kwargs={"shapeId": row_id}
+            "webgateway_render_shape_thumbnail", kwargs={"shapeId": obj_id}
         )
-        if omero_iviewer_index:
-            web_url = omero_iviewer_index + f"?shape={row_id}"
+        if omero_iviewer_url:
+            viewer_url = omero_iviewer_url + f"?shape={obj_id}"
         else:
-            web_url = webclient_url + f"?show=shape-{row_id}/"
-    elif row_type == "roi":
-        thumb_url = reverse("webgateway_render_roi_thumbnail", kwargs={"roiId": row_id})
-        if omero_iviewer_index:
-            web_url = omero_iviewer_index + f"?roi={row_id}"
+            viewer_url = webclient_url
+    elif obj_type == "roi":
+        thumb_url = reverse("webgateway_render_roi_thumbnail", kwargs={"roiId": obj_id})
+        if omero_iviewer_url:
+            viewer_url = omero_iviewer_url + f"?roi={obj_id}"
         else:
-            web_url = webclient_url + f"?show=roi-{row_id}/"
-    return web_url, thumb_url
+            viewer_url = webclient_url
+
+    return {"webclient": webclient_url, "thumbnail": thumb_url, "viewer": viewer_url}
 
 
 @login_required()
@@ -290,6 +281,22 @@ def csv_metadata(request, fileId, conn=None, **kwargs):
     return JsonResponse(metadata)
 
 
+def get_obj_type_and_column(col_names):
+    obj_type = None
+    obj_column_idx = None
+    for idx, col in enumerate(col_names):
+        if col.lower() in ("image", "image_id", "image id"):
+            obj_type = "image"
+            obj_column_idx = idx
+        elif col.lower() in ("shape", "shape_id", "shape id"):
+            obj_type = "shape"
+            obj_column_idx = idx
+        elif col.lower() in ("roi", "roi_id", "roi id"):
+            obj_type = "roi"
+            obj_column_idx = idx
+    return obj_type, obj_column_idx
+
+
 @login_required()
 def csv_to_bff_csv(request, ann_id, conn=None, **kwargs):
     """
@@ -320,32 +327,30 @@ def csv_to_bff_csv(request, ann_id, conn=None, **kwargs):
         except StopIteration:
             return  # Empty file
 
-        # Find image column (case-insensitive)
-        image_col = None
-        shape_col = None
-        roi_col = None
-        for idx, col in enumerate(header):
-            if col.lower() in ("image", "image_id", "image id"):
-                image_col = idx
-            elif col.lower() in ("shape", "shape_id", "shape id"):
-                shape_col = idx
-            elif col.lower() in ("roi", "roi_id", "roi id"):
-                roi_col = idx
+        # Find key column (case-insensitive)
+        obj_type, obj_column_idx = get_obj_type_and_column(header)
         # Compose new header
         new_header = list(header)
-        if image_col is not None or shape_col is not None or roi_col is not None:
-            new_header.insert(image_col + 1, "File Path")
-            new_header.insert(image_col + 2, "Thumbnail")
+        if obj_column_idx is not None:
+            new_header.insert(obj_column_idx + 1, "File Path")
+            new_header.insert(obj_column_idx + 2, "Thumbnail")
+            new_header.insert(obj_column_idx + 3, VIEWER_LINK)
+        if obj_type == "image":
+            new_header.insert(obj_column_idx + 4, WEBCLIENT_LINK)
 
         writer.writerow(new_header)
 
         # For each row, add OMERO.web URLs if possible
         for row in reader:
             new_row = list(row)
-            if image_col is not None or shape_col is not None or roi_col is not None:
-                urls = get_urls(new_row, image_col, roi_col, shape_col)
-                new_row.insert(image_col + 1, urls[0])
-                new_row.insert(image_col + 2, urls[1])
+            if obj_column_idx is not None:
+                urls = get_urls(obj_type, new_row[obj_column_idx])
+                new_row.insert(obj_column_idx + 1, urls["webclient"])
+                new_row.insert(obj_column_idx + 2, urls["thumbnail"])
+                new_row.insert(obj_column_idx + 3, urls["viewer"])
+            if obj_type == "image":
+                # open with "webclient" is only relevant for images
+                new_row.insert(obj_column_idx + 4, urls["webclient"])
             writer.writerow(new_row)
 
         response = HttpResponse(
@@ -428,22 +433,16 @@ def omero_to_csv(request, obj_type, obj_id, conn=None, **kwargs):
         writer = csv.writer(csvfile)
         writer.writerow(column_names)
         for image_id in image_ids:
+            urls = get_urls("image", image_id)
             values = kvp.get(image_id, {})
-            thumb_url = reverse("webgateway_render_thumbnail", kwargs={"iid": image_id})
-            thumb_url = request.build_absolute_uri(thumb_url)
             image = conn.getObject("Image", image_id)
-            image_url = request.build_absolute_uri(reverse("webindex"))
-            image_url += f"?show=image-{image_id}"
-            viewer_url = request.build_absolute_uri(
-                reverse("web_image_viewer", kwargs={"iid": image_id})
-            )
             row = [
-                image_url,
+                urls["webclient"],
                 image.getName() if image else "Not Found",
-                image_url,
-                viewer_url,
+                urls["webclient"],
+                urls["viewer"],
                 parent_names_by_iid.get(image_id, "Not Found"),
-                thumb_url,
+                urls["thumbnail"],
             ]
             for key in keys:
                 row.append(",".join(values.get(key, [])))
@@ -473,18 +472,15 @@ def table_to_parquet(request, ann_id, conn=None, **kwargs):
     query = request.GET.get("query", "*")
     col_names = request.GET.getlist("col_names")
 
-    # NB: we don't need absolute URLs here, as the BFF app is hosted
-    # by omero-web. If we want to use BFF outside of omero-web,
-    # we would need to change the URLs to absolute URLs.
-    base_url = reverse("index")
-    web_url = f"{base_url}webclient/?show=image-"
-    thumb_url = f"{base_url}webgateway/render_thumbnail/"
-
     limit = 10000
     offset = 0
     row_count = None
 
     pyarrow_tables = []
+
+    # e.g. rows link to "shape" or "roi" or "image"
+    obj_type = None
+    obj_column_idx = None
 
     while row_count is None or offset < row_count:
         table_data = perform_table_query(
@@ -494,22 +490,35 @@ def table_to_parquet(request, ann_id, conn=None, **kwargs):
         if offset == 0:
             row_count = table_data["meta"]["totalCount"]
             columns = table_data["data"]["columns"]
-            image_col = -1
-            image_col = (
-                columns.index("Image") if "Image" in columns else columns.index("image")
-            )
-            if image_col == -1:
-                return HttpResponse("No Image or image column in table", status=400)
+            obj_type, obj_column_idx = get_obj_type_and_column(columns)
+            if obj_type is None or obj_column_idx is None:
+                return HttpResponse(
+                    "No image, roi or shape columns in table", status=400
+                )
             # Add a column for file paths and thumbnails
-            column_names = ["File Path"] + columns + ["Thumbnail"]
+            cols_to_add = ["File Path", VIEWER_LINK]
+            if obj_type == "image":
+                cols_to_add.append(WEBCLIENT_LINK)
+            column_names = cols_to_add + columns + ["Thumbnail"]
 
         rows = table_data["data"]["rows"]
-        file_paths = [f"{web_url}{row[image_col]}" for row in rows]
-        column_data = [file_paths]
+        file_paths = []
+        thumbnail_urls = []
+        viewer_urls = []
+
+        for row in rows:
+            urls = get_urls(obj_type, row[obj_column_idx])
+            file_paths.append(urls["webclient"])
+            thumbnail_urls.append(urls["thumbnail"])
+            viewer_urls.append(urls["viewer"])
+
+        column_data = [file_paths, viewer_urls]
+        if obj_type == "image":
+            # open with webclient uses File Path url
+            column_data.append(file_paths)
         for col in range(len(columns)):
             col_data = [row[col] for row in rows]
             column_data.append(col_data)
-        thumbnail_urls = [f"{thumb_url}{row[image_col]}/" for row in rows]
         column_data.append(thumbnail_urls)
         pyarrow_tables.append(pa.table(column_data, names=column_names))
 
