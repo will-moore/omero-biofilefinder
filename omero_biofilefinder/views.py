@@ -44,6 +44,11 @@ TABLE_NAMESPACE = "openmicroscopy.org/omero/bulk_annotations"
 
 SCRIPT_PATH = "/omero/annotation_scripts/Export_to_Biofile_Finder.py"
 
+# These are column names that are used for "Open with" in BFF.
+# E.g. "Open with > OMERO viewer" and "Open with > OMERO webclient"
+VIEWER_LINK = "OMERO viewer"
+WEBCLIENT_LINK = "OMERO webclient"
+
 
 @login_required()
 def index(request, conn=None, **kwargs):
@@ -53,22 +58,42 @@ def index(request, conn=None, **kwargs):
     )
 
 
+def column_description(request, conn=None, **kwargs):
+    """
+    Return a CSV file with the column descriptions for the BFF app.
+    """
+    col_desc = [
+        ["Column Name", "Description", "Type"],
+        [VIEWER_LINK, "Open in OMERO viewer", "Open file link"],
+        [WEBCLIENT_LINK, "Open in OMERO webclient", "Open file link"],
+    ]
+    response = HttpResponse(content_type="text/csv")
+    response["Content-Disposition"] = 'attachment; filename="Column_Description.csv"'
+    writer = csv.writer(response)
+    writer.writerows(col_desc)
+    return response
+
+
 def get_bff_url(request, data_url, fname, ext="csv"):
     """
     We build config into query params for the BFF app
     """
     data_url = request.build_absolute_uri(data_url)
+    col_desc_url = request.build_absolute_uri(reverse("bff_column_description"))
     # Django may not know it's under https
     if settings.FORCE_HTTPS:
         data_url = data_url.replace("http://", "https://")
+        col_desc_url = col_desc_url.replace("http://", "https://")
     source = {
         "uri": data_url,
         "type": ext,
         "name": fname,
     }
+    meta = {"name": "Column_Description.csv", "type": "csv", "uri": col_desc_url}
+    meta_s = urllib.parse.quote(json.dumps(meta))
     s = urllib.parse.quote(json.dumps(source))
     bff_static = reverse("bff_static", kwargs={"url": ""})
-    bff_url = f"{bff_static}?source={s}"
+    bff_url = f"{bff_static}?source={s}&sourceMetadata={meta_s}"
     return bff_url
 
 
@@ -270,7 +295,14 @@ def omero_to_csv(request, obj_type, obj_id, conn=None, **kwargs):
             value = key_val[1]
             kvp[image_id][key].append(value)
 
-    column_names = ["File Path", "File Name", parent_colname, "Thumbnail"]
+    column_names = [
+        "File Path",
+        "File Name",
+        WEBCLIENT_LINK,
+        VIEWER_LINK,
+        parent_colname,
+        "Thumbnail",
+    ]
     column_names.extend(list(keys))
     column_names.append("Uploaded")
 
@@ -284,11 +316,15 @@ def omero_to_csv(request, obj_type, obj_id, conn=None, **kwargs):
             thumb_url = request.build_absolute_uri(thumb_url)
             image = conn.getObject("Image", image_id)
             image_url = request.build_absolute_uri(reverse("webindex"))
-            # we end url with .png so that BFF enables open-with "Browser"
-            image_url += f"?show=image-{image_id}&_=.png"
+            image_url += f"?show=image-{image_id}"
+            viewer_url = request.build_absolute_uri(
+                reverse("web_image_viewer", kwargs={"iid": image_id})
+            )
             row = [
                 image_url,
                 image.getName() if image else "Not Found",
+                image_url,
+                viewer_url,
                 parent_names_by_iid.get(image_id, "Not Found"),
                 thumb_url,
             ]
@@ -324,7 +360,6 @@ def table_to_parquet(request, ann_id, conn=None, **kwargs):
     # by omero-web. If we want to use BFF outside of omero-web,
     # we would need to change the URLs to absolute URLs.
     base_url = reverse("index")
-    # we end URL with .png so that BFF enables open-with "Browser"
     web_url = f"{base_url}webclient/?show=image-"
     thumb_url = f"{base_url}webgateway/render_thumbnail/"
 
@@ -352,7 +387,7 @@ def table_to_parquet(request, ann_id, conn=None, **kwargs):
             column_names = ["File Path"] + columns + ["Thumbnail"]
 
         rows = table_data["data"]["rows"]
-        file_paths = [f"{web_url}{row[image_col]}&_=.png" for row in rows]
+        file_paths = [f"{web_url}{row[image_col]}" for row in rows]
         column_data = [file_paths]
         for col in range(len(columns)):
             col_data = [row[col] for row in rows]

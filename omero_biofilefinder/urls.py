@@ -27,6 +27,7 @@ urlpatterns = [
     path(
         "upload_omero_script", views.upload_omero_script, name="bff_upload_omero_script"
     ),
+    path("column_description", views.column_description, name="bff_column_description"),
     path("admin", views.admin_page, name="omero_biofilefinder_admin"),
     # entry-point - user chooses how to open BFF ?project=1 or ?dataset=2 etc
     path("open_with_bff", views.open_with_bff, name="omero_biofilefinder_openwith"),
