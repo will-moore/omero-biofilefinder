@@ -30,14 +30,21 @@ context menu to `Open With > BioFile Finder`. This will open a page that lists t
 
  - Use an existing OMERO.table or CSV file: if you have any OMERO.tables or `csv` files attached to the
    selected Project, Dataset, Plate (or Image), these will be listed in the `Open with` page. You can
-   click on the OMERO.table or `csv` file to open it in BFF. In both cases, when the file is loaded into BFF,
-   it will formatted into a compatible format for BFF. OMERO-biofilefinder will look in the table for `Shape`, `ROI` or `Image`
-   columns (in that order). Any column name (when converted to lowercase) that matches `shape`, `shape_id` or `shape id` will
-   be used to retrieve `Shape` IDs. If none is found, then the same strategy is used to find any `ROI` column, followed
-   by any `Image` column. The `Shape` or `ROI` or `Image` ID is used to add an appropriate `Thumbnail` link for each row,
-   and to create a `File Path` to that object.
-   When loading an existing table, the `Shape`, `ROI` or `Image` IDs in the OMERO.table or `csv` file don't need to
-   correspond to the object that the file is attached to.
+   click on the OMERO.table or `csv` file to open it in BFF. When the table is loaded into BFF,
+   it will augmented with certain columns that BFF expects. See the following section for info on how
+   to format your CSV or OMERO.table:
+
+Table format
+============
+
+You can attach a CSV or OMERO.table to any `Project`, `Dataset`, `Image` or `Plate`. The OMERO IDs
+specified in the table do not have to correspond to that object.
+
+OMERO-biofilefinder will look in the table for `Shape`, `ROI` or `Image` columns (in that order).
+Any column name (when converted to lowercase) that matches `shape`, `shape_id` or `shape id` will
+be used to retrieve `Shape` IDs. If none is found, then the same strategy is used to find any `ROI` column, followed
+by any `Image` column. The `Shape` or `ROI` or `Image` ID is used to add an appropriate `Thumbnail` column for each row,
+and to create a `File Path` to that object.
 
 
 Data in webclient - images and Key-Value pairs are from idr0021.
