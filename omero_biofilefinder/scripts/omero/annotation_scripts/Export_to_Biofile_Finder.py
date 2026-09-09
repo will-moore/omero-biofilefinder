@@ -191,7 +191,7 @@ def process_container_to_csv(conn, dtype, obj_id, base_url):
         writer.writerow(column_names)
         for image_id in image_ids:
             values = kvp.get(image_id, {})
-            thumb_url = f"{base_url}webgateway/render_thumbnail/{image_id}"
+            thumb_url = f"{base_url}webgateway/render_thumbnail/{image_id}/"
             image_url = f"{base_url}webclient/?show=image-{image_id}"
             viewer_url = f"{base_url}webclient/img_detail/{image_id}/"
             img_info = images_by_id.get(image_id)

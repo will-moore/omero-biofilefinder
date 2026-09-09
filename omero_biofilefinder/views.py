@@ -226,7 +226,7 @@ def get_urls(obj_type, obj_id):
         # iviewer not installed
         omero_iviewer_url = None
 
-    webclient_url = base_url + f"?show={obj_type}-{obj_id}/"
+    webclient_url = base_url + f"?show={obj_type}-{obj_id}"
     if obj_type == "image":
         thumb_url = reverse("webgateway_render_thumbnail", kwargs={"iid": obj_id})
         viewer_url = base_url + f"img_detail/{obj_id}/"
