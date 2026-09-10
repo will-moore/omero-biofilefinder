@@ -34,18 +34,18 @@ context menu to `Open With > BioFile Finder`. This will open a page that lists t
 Table format
 ------------
 
-You can attach a CSV or OMERO.table to any `Project`, `Dataset`, `Image` or `Plate`. The OMERO IDs
-specified in the table do not have to correspond to that object.
+You can attach a CSV or OMERO.table to any `Project`, `Dataset`, `Image` or `Plate`.
 
-OMERO-biofilefinder will look in the table for `Shape`, `ROI` or `Image` columns (in that order).
-Any column name (when converted to lowercase) that matches `shape`, `shape_id` or `shape id` will
-be used to retrieve `Shape` IDs. If none is found, then the same strategy is used to find any `ROI` column, followed
-by any `Image` column. The `Shape` or `ROI` or `Image` ID is used to add an appropriate `Thumbnail` column for each row,
-and to create a `File Path` to that object.
+One option for creating a suitable table for `Shapes` and `ROIs` is use the `Batch_ROI_Export` script.
+Select a parent object (`Project`, `Dataset`, `Image` or `Plate`), run the script which is under the
+`export_scripts` menu, and the CSV file will be attached to the object.
 
-You can use the `Batch_ROI_Export` script (under the `export_scripts` option) to create a suitable table
-from the ROIs in a `Plate`, `Project`, `Dataset` or `Image`. The CSV file will be attached to the selected
-object and will be viewable in BioFile Finder.
+If you wish to create your own table, it will need to include a `Shape`, `ROI` or `Image` column.
+OMERO-biofilefinder will first look in the table for a column named `shape`, `shape_id` or `shape id`
+(when converted to lowercase). If none is found, then the same strategy is used to find any `ROI` column,
+followed by any `Image` column. The `Shape` or `ROI` or `Image` IDs are used to add an appropriate
+`Thumbnail` column for each row, and to create `Open with` links to that object in the OMERO webclient or viewer.
+
 
 **Screenshots below workflow 1) from above:**
 
