@@ -46,19 +46,24 @@ OMERO-biofilefinder will first look in the table for a column named `shape`, `sh
 followed by any `Image` column. The `Shape` or `ROI` or `Image` IDs are used to add an appropriate
 `Thumbnail` column for each row, and to create `Open with` links to that object in the OMERO webclient or viewer.
 
+Screenshots
+-----------
 
-**Screenshots below workflow 1) from above:**
+**The following screenshots illustrate workflow 1) from above:**
 
-show Data in webclient - images and Key-Value pairs are from idr0021.
+Starting in the webclient, we can see that images are annotated with several Key-Value pairs
+in the right panel, including `Gene Symbol`. The data here is from idr0021.
 
 <img width="1256" alt="Image" src="https://github.com/user-attachments/assets/8124429d-ef3e-497b-baa2-9d537ac98357" />
 
-Open Project with BioFile Finder...
+Select the Project and Open with BioFile Finder...
 
 <img width="420" alt="Image" src="https://github.com/user-attachments/assets/4e933502-b322-42b4-a19c-8de603e5427c" />
 
 This will open a page where you can choose options for loading data into BioFile Finder.
-Here the images are grouped by `Gene Symbol`.
+
+Choosing the first option will Open BFF and the table of images with Key-Value pairs is loaded "on the fly".
+Here, the Thumbnail view is selected in BFF and the Images are grouped by `Gene Symbol`.
 
 <img width="1510" alt="Image" src="https://github.com/user-attachments/assets/3993278e-b978-4e89-b886-6df587a1297b" />
 
