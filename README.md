@@ -21,18 +21,17 @@ context menu to `Open With > BioFile Finder`. This will open a page that lists t
    Also, if you refresh the BFF app page, it will re-load the table from OMERO and this will include
    any updated Key-Value pairs. The disadvantage is that building the table on the fly can take several seconds
    or longer for large numbers of Images. This may lead to a time-out on the request.
-
  2. Use a script to build a table: OMERO-biofilefinder includes an OMERO server script that will create a
    BFF-compatible table of Images as a `Parquet` file on a Project, Dataset or Plate using the same logic
    as above. This option is only displayed on the `Open with` page if the Project, Dataset or Plate has
    a large number of images (currently set at 400 or more) when time-out could become a problem for
    "on the fly" creation.
-
  3. Use an existing OMERO.table or CSV file: if you have any OMERO.tables or `csv` files attached to the
    selected Project, Dataset, Plate (or Image), these will be listed in the `Open with` page. You can
    click on the OMERO.table or `csv` file to open it in BFF. When the table is loaded into BFF,
    it will augmented with certain columns that BFF expects. See the following section for info on how
    to format your CSV or OMERO.table:
+
 
 Table format
 ------------
