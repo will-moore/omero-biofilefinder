@@ -15,20 +15,20 @@ The table of data that is displayed by BioFile Finder (BFF) can be compiled in a
 In each case, you start by selecting a Project, Dataset or Plate in the webclient and use the
 context menu to `Open With > BioFile Finder`. This will open a page that lists the following options:
 
- - Build a table "On the fly": BFF will request a table of Images from the chosen Project, Dataset or Plate.
+ 1. Build a table "On the fly": BFF will request a table of Images from the chosen Project, Dataset or Plate.
    This table will be compiled from Key-Value pairs on the Images with a column for each key. A Creation Date column
    is also added. The advantage of this option is that you don't need to create the Table of data before-hand.
    Also, if you refresh the BFF app page, it will re-load the table from OMERO and this will include
    any updated Key-Value pairs. The disadvantage is that building the table on the fly can take several seconds
    or longer for large numbers of Images. This may lead to a time-out on the request.
 
- - Use a script to build a table: OMERO-biofilefinder includes an OMERO server script that will create a
+ 2. Use a script to build a table: OMERO-biofilefinder includes an OMERO server script that will create a
    BFF-compatible table of Images as a `Parquet` file on a Project, Dataset or Plate using the same logic
    as above. This option is only displayed on the `Open with` page if the Project, Dataset or Plate has
    a large number of images (currently set at 400 or more) when time-out could become a problem for
    "on the fly" creation.
 
- - Use an existing OMERO.table or CSV file: if you have any OMERO.tables or `csv` files attached to the
+ 3. Use an existing OMERO.table or CSV file: if you have any OMERO.tables or `csv` files attached to the
    selected Project, Dataset, Plate (or Image), these will be listed in the `Open with` page. You can
    click on the OMERO.table or `csv` file to open it in BFF. When the table is loaded into BFF,
    it will augmented with certain columns that BFF expects. See the following section for info on how
@@ -46,8 +46,13 @@ be used to retrieve `Shape` IDs. If none is found, then the same strategy is use
 by any `Image` column. The `Shape` or `ROI` or `Image` ID is used to add an appropriate `Thumbnail` column for each row,
 and to create a `File Path` to that object.
 
+You can use the `Batch_ROI_Export` script (under the `export_scripts` option) to create a suitable table
+from the ROIs in a `Plate`, `Project`, `Dataset` or `Image`. The CSV file will be attached to the selected
+object and will be viewable in BioFile Finder.
 
-Data in webclient - images and Key-Value pairs are from idr0021.
+**Screenshots below workflow 1) from above:**
+
+show Data in webclient - images and Key-Value pairs are from idr0021.
 
 <img width="1256" alt="Image" src="https://github.com/user-attachments/assets/8124429d-ef3e-497b-baa2-9d537ac98357" />
 
