@@ -226,24 +226,33 @@ def get_urls(obj_type, obj_id):
         # iviewer not installed
         omero_iviewer_url = None
 
+    thumb_url = ""
+    viewer_url = ""
     webclient_url = base_url + f"?show={obj_type}-{obj_id}"
-    if obj_type == "image":
-        thumb_url = reverse("webgateway_render_thumbnail", kwargs={"iid": obj_id})
-        viewer_url = base_url + f"img_detail/{obj_id}/"
-    elif obj_type == "shape":
-        thumb_url = reverse(
-            "webgateway_render_shape_thumbnail", kwargs={"shapeId": obj_id}
-        )
-        if omero_iviewer_url:
-            viewer_url = omero_iviewer_url + f"?shape={obj_id}"
-        else:
-            viewer_url = webclient_url
-    elif obj_type == "roi":
-        thumb_url = reverse("webgateway_render_roi_thumbnail", kwargs={"roiId": obj_id})
-        if omero_iviewer_url:
-            viewer_url = omero_iviewer_url + f"?roi={obj_id}"
-        else:
-            viewer_url = webclient_url
+
+    try:
+        if obj_type == "image":
+            thumb_url = reverse("webgateway_render_thumbnail", kwargs={"iid": obj_id})
+            viewer_url = base_url + f"img_detail/{obj_id}/"
+        elif obj_type == "shape":
+            thumb_url = reverse(
+                "webgateway_render_shape_thumbnail", kwargs={"shapeId": obj_id}
+            )
+            if omero_iviewer_url:
+                viewer_url = omero_iviewer_url + f"?shape={obj_id}"
+            else:
+                viewer_url = webclient_url
+        elif obj_type == "roi":
+            thumb_url = reverse(
+                "webgateway_render_roi_thumbnail", kwargs={"roiId": obj_id}
+            )
+            if omero_iviewer_url:
+                viewer_url = omero_iviewer_url + f"?roi={obj_id}"
+            else:
+                viewer_url = webclient_url
+    except NoReverseMatch:
+        # e.g. column value not an integer - Ignore
+        pass
 
     return {"webclient": webclient_url, "thumbnail": thumb_url, "viewer": viewer_url}
 
