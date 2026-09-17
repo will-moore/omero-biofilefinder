@@ -290,19 +290,27 @@ def csv_metadata(request, fileId, conn=None, **kwargs):
     return JsonResponse(metadata)
 
 
-def get_obj_type_and_column(col_names):
+def get_obj_type_and_column(col_names, first_row=None):
     obj_type = None
     obj_column_idx = None
-    for idx, col in enumerate(col_names):
-        if col.lower() in ("image", "image_id", "image id"):
-            obj_type = "image"
-            obj_column_idx = idx
-        elif col.lower() in ("shape", "shape_id", "shape id"):
-            obj_type = "shape"
-            obj_column_idx = idx
-        elif col.lower() in ("roi", "roi_id", "roi id"):
-            obj_type = "roi"
-            obj_column_idx = idx
+    for otype in ("shape", "roi", "image"):
+        for idx, col in enumerate(col_names):
+            # check for "shape", "shape_id", "shape id" etc.
+            if col.lower() in (otype, f"{otype}_id", f"{otype} id"):
+                if first_row is not None:
+                    try:
+                        int(first_row[idx])
+                        obj_type = otype
+                        obj_column_idx = idx
+                        break
+                    except ValueError:
+                        continue
+                else:
+                    obj_type = otype
+                    obj_column_idx = idx
+                    break
+        if obj_type is not None:
+            break
     return obj_type, obj_column_idx
 
 
@@ -333,11 +341,13 @@ def csv_to_bff_csv(request, ann_id, conn=None, **kwargs):
         reader = csv.reader(io.StringIO(csv_text))
         try:
             header = next(reader)
+            first_row = next(reader)
+            print("first row:", first_row)
         except StopIteration:
             return  # Empty file
 
         # Find key column (case-insensitive)
-        obj_type, obj_column_idx = get_obj_type_and_column(header)
+        obj_type, obj_column_idx = get_obj_type_and_column(header, first_row)
         # Compose new header
         new_header = list(header)
         if obj_column_idx is not None:
@@ -350,17 +360,23 @@ def csv_to_bff_csv(request, ann_id, conn=None, **kwargs):
         writer.writerow(new_header)
 
         # For each row, add OMERO.web URLs if possible
-        for row in reader:
+        def handle_row(row):
             new_row = list(row)
             if obj_column_idx is not None:
                 urls = get_urls(obj_type, new_row[obj_column_idx])
+                # 'File Path', 'Thumbnail', and 'Viewer Link' columns
                 new_row.insert(obj_column_idx + 1, urls["webclient"])
                 new_row.insert(obj_column_idx + 2, urls["thumbnail"])
                 new_row.insert(obj_column_idx + 3, urls["viewer"])
             if obj_type == "image":
-                # open with "webclient" is only relevant for images
+                # WEBCLIENT_LINK is only relevant for images
                 new_row.insert(obj_column_idx + 4, urls["webclient"])
             writer.writerow(new_row)
+
+        # write the first_row, then all remaining rows
+        handle_row(first_row)
+        for row in reader:
+            handle_row(row)
 
         response = HttpResponse(
             csvfile.getvalue(),
@@ -496,10 +512,12 @@ def table_to_parquet(request, ann_id, conn=None, **kwargs):
             conn, fileid, query, col_names, offset=offset, limit=limit
         )
 
+        rows = table_data["data"]["rows"]
+
         if offset == 0:
             row_count = table_data["meta"]["totalCount"]
             columns = table_data["data"]["columns"]
-            obj_type, obj_column_idx = get_obj_type_and_column(columns)
+            obj_type, obj_column_idx = get_obj_type_and_column(columns, rows[0])
             if obj_type is None or obj_column_idx is None:
                 return HttpResponse(
                     "No image, roi or shape columns in table", status=400
@@ -510,7 +528,6 @@ def table_to_parquet(request, ann_id, conn=None, **kwargs):
                 cols_to_add.append(WEBCLIENT_LINK)
             column_names = cols_to_add + columns + ["Thumbnail"]
 
-        rows = table_data["data"]["rows"]
         file_paths = []
         thumbnail_urls = []
         viewer_urls = []
