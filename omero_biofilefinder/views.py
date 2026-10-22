@@ -583,6 +583,9 @@ def app(request, url, **kwargs):
             # e.g. "/omero_biofilefinder/bff"
             basename = reverse("omero_biofilefinder_index") + "bff"
             content = content.replace('{basename:""}', f'{{basename:"{basename}"}}')
+        if url == "index.html":
+            content = content.replace('src="/app', 'src="app')
+            content = content.replace('href="/app', 'href="app')
 
         response = HttpResponse(content)
         if url.endswith(".js"):
