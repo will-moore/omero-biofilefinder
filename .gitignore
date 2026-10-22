@@ -3,3 +3,5 @@ node_modules
 *.pyc
 *.DS_Store
 *.egg-info
+omero_biofilefinder/static/omero_biofilefinder/dist/*
+dist/
